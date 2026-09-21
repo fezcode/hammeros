@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.1.0</Version>
+    <Company>Workhammer</Company>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/HammerOS.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="tools/**;tests/**;vendor/**" />
+    <ProjectReference Include="vendor/Clockt.Terminal/Clockt.Terminal.csproj" />
+    <AvaloniaResource Include="Assets/**" />
+    <PackageReference Include="Avalonia" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.2" />
+  </ItemGroup>
+</Project>
