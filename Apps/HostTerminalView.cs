@@ -12,35 +12,6 @@ using HammerOS.Desktop;
 
 namespace HammerOS.Apps;
 
-public sealed class TerminalView : UserControl, IDisposable
-{
-    private readonly DepartmentTerminalView _department;
-    private readonly HostTerminalView _host = new();
-    private readonly ContentControl _body = new();
-    private readonly Button _departmentTab, _hostTab;
-    private readonly TextBlock _mode = Ui.Label("VIRTUAL ENVIRONMENT", Ui.Muted);
-    public TerminalView(SystemState state, Action<string> open)
-    {
-        _department = new(state, open);
-        _departmentTab = Ui.Button("Department", () => Select(false), "dark");
-        _hostTab = Ui.Button("PowerShell  ↗", () => Select(true), "dark");
-        var toolbar = new Border { Background = Brush.Parse("#163239"), BorderBrush = Brush.Parse("#335158"), BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(10, 0), Child = Ui.Columns("Auto,*", Ui.Row(3, _departmentTab, _hostTab), _mode) };
-        _mode.HorizontalAlignment = HorizontalAlignment.Right; _mode.FontSize = 9;
-        var root = new Grid { RowDefinitions = new RowDefinitions("42,*") }; root.Children.Add(toolbar); Grid.SetRow(_body, 1); root.Children.Add(_body); Content = root; Select(false);
-    }
-    public void Select(bool host)
-    {
-        _body.Content = host ? _host : _department;
-        _departmentTab.Background = host ? Brushes.Transparent : Brush.Parse("#294B4D"); _hostTab.Background = host ? Brush.Parse("#294B4D") : Brushes.Transparent;
-        _departmentTab.BorderThickness = _hostTab.BorderThickness = new Thickness(0, 0, 0, 2);
-        _departmentTab.BorderBrush = host ? Brushes.Transparent : Ui.Phosphor; _hostTab.BorderBrush = host ? Ui.Phosphor : Brushes.Transparent;
-        _mode.Text = host ? "●  HOST MACHINE" : "VIRTUAL ENVIRONMENT"; _mode.Foreground = host ? Brush.Parse("#D8BA82") : Ui.Muted;
-        Motion.Enter(_body, 4);
-        if (host) _host.Start();
-    }
-    public void Dispose() => _host.Dispose();
-}
-
 public sealed class HostTerminalView : UserControl, IDisposable
 {
     private HostTerminalSession? _session;
@@ -48,8 +19,13 @@ public sealed class HostTerminalView : UserControl, IDisposable
     private readonly TextBlock _status = Ui.Label("READY  /  START POWERSHELL", Ui.Muted);
     private readonly TextBlock _message = Ui.Text("", 12, Ui.Phosphor, true);
     private bool _starting, _disposed;
-    public HostTerminalView()
+    private readonly string? _directory;
+    private readonly string _shell;
+    private string? _initialCommand;
+    public HostTerminalSession? Session => _session;
+    public HostTerminalView(string? directory = null, string shell = "powershell", string? initialCommand = null)
     {
+        _directory = directory; _shell = shell; _initialCommand = initialCommand;
         Background = Ui.Dark;
         var root = new Grid { RowDefinitions = new RowDefinitions("*,30") };
         root.Children.Add(new Panel { Children = { _surface, _message } }); _message.Margin = new Thickness(18); _message.VerticalAlignment = VerticalAlignment.Top; _message.IsHitTestVisible = false;
@@ -64,7 +40,8 @@ public sealed class HostTerminalView : UserControl, IDisposable
         _starting = true; _message.Text = "Connecting to your workstation…";
         try
         {
-            var session = await Task.Run(() => new HostTerminalSession());
+            var session = await Task.Run(() => new HostTerminalSession(workingDirectory: _directory, shell: _shell, initialCommand: _initialCommand));
+            _initialCommand = null;
             if (_disposed) { session.Dispose(); return; }
             _session = session; _surface.Attach(session); _message.Text = ""; _status.Text = $"{session.ShellName.ToUpperInvariant()}  /  PID {session.ProcessId}"; _surface.Focus();
             _ = ObserveExit(session);
@@ -100,6 +77,10 @@ public sealed class TerminalSurface : Control, IDisposable
     public TerminalSurface()
     {
         Focusable = true; ClipToBounds = true; Cursor = new Avalonia.Input.Cursor(StandardCursorType.Ibeam);
+        var menu = new ContextMenu { MinWidth = 230 };
+        var copy = new MenuItem { Header = "Copy selection or screen", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control | KeyModifiers.Shift) }; copy.Click += async (_, _) => await Copy();
+        var paste = new MenuItem { Header = "Paste", InputGesture = new KeyGesture(Key.V, KeyModifiers.Control | KeyModifiers.Shift) }; paste.Click += async (_, _) => await Paste();
+        menu.Items.Add(copy); menu.Items.Add(paste); menu.Opened += (_, _) => { copy.IsEnabled = _session is not null; paste.IsEnabled = _session is { HasExited: false }; }; ContextMenu = menu;
         _timer.Tick += (_, _) =>
         {
             if (_session is null || !IsEffectivelyVisible) return;
@@ -219,4 +200,3 @@ public sealed class TerminalSurface : Control, IDisposable
     }
     public void Dispose() { _timer.Stop(); _resize.Stop(); Detach(); }
 }
-

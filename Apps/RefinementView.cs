@@ -19,7 +19,7 @@ public sealed class RefinementView : UserControl, IDisposable
     {
         _state = state; Background = Ui.Dark;
         var root = new Grid { RowDefinitions = new RowDefinitions("88,*,36,111,30") };
-        var fileTitle = new TextBlock { Text = "Siena", FontSize = 34, FontFamily = Ui.Serif, Foreground = Ui.Phosphor };
+        var fileTitle = new TextBlock { Text = "Aster", FontSize = 34, FontFamily = Ui.Serif, Foreground = Ui.Phosphor };
         var heading = Ui.Stack(6, Ui.Label("ACTIVE FILE  /  0X 4A 92", Brush.Parse("#749D97")), fileTitle);
         var right = Ui.Stack(6, Ui.Label("QUARTERLY QUOTA", Brush.Parse("#749D97")), _quota); right.HorizontalAlignment = HorizontalAlignment.Right;
         var header = new Border { Padding = new Thickness(27, 16), BorderBrush = Brush.Parse("#35565A"), BorderThickness = new Thickness(0, 0, 0, 1), Child = Ui.Columns("*,Auto", heading, right) }; root.Children.Add(header);
@@ -34,7 +34,7 @@ public sealed class RefinementView : UserControl, IDisposable
             bin.Content = Ui.Stack(9); Grid.SetColumn(bin, i); binGrid.Children.Add(bin);
         }
         Grid.SetRow(binGrid, 3); root.Children.Add(binGrid);
-        var footer = new Border { Background = Brush.Parse("#193A40"), Padding = new Thickness(27, 0), Child = Ui.Columns("*,Auto", Ui.Label("MDR  /  REFINEMENT PROTOCOL 2.1", Brush.Parse("#88A9A2")), Ui.Label("PLEASE ENJOY EACH NUMBER EQUALLY.", Brush.Parse("#88A9A2"))) }; Grid.SetRow(footer, 4); root.Children.Add(footer);
+        var footer = new Border { Background = Brush.Parse("#193A40"), Padding = new Thickness(27, 0), Child = Ui.Columns("*,Auto", Ui.Label("HMR  /  REFINEMENT PROTOCOL 2.1", Brush.Parse("#88A9A2")), Ui.Label("EVERY PATTERN HAS A PLACE.", Brush.Parse("#88A9A2"))) }; Grid.SetRow(footer, 4); root.Children.Add(footer);
         _binGrid = binGrid; Content = root; state.Changed += Update; Update();
     }
     private readonly Grid _binGrid;
@@ -48,7 +48,7 @@ public sealed class RefinementView : UserControl, IDisposable
             stack.Children.Add(Ui.Columns("*,Auto", Ui.Text($"0{i + 1}", 20, Ui.Phosphor, true), Ui.Text($"{percent}%", 11, Ui.Phosphor, true)));
             var track = new Grid { Height = 4, Background = Brush.Parse("#345457"), ColumnDefinitions = new ColumnDefinitions($"{Math.Max(.001, percent)}*,{Math.Max(.001, 100 - percent)}*") };
             track.Children.Add(new Border { Background = Ui.Phosphor }); stack.Children.Add(track);
-            stack.Children.Add(Ui.Label("WO  FC  DR  MA", Brush.Parse("#719B95")));
+            stack.Children.Add(Ui.Label("A  B  C  D", Brush.Parse("#719B95")));
         }
         if (!_state.Services["Refinement engine"]) _status.Text = "Refinement engine stopped. Resume it in Control Panel.";
     }
@@ -60,7 +60,7 @@ public sealed class RefinementView : UserControl, IDisposable
         var count = _numbers.Selected.Count;
         _state.Preferences.Bins[bin] = Math.Min(100, _state.Preferences.Bins[bin] + count);
         _numbers.Collect(); _state.Record($"Refined {count} numbers into bin 0{bin + 1}"); _state.Save();
-        _status.Text = _state.Preferences.Bins.All(x => x == 100) ? "Siena complete. Management appreciates your contribution." : $"Numbers accepted into bin 0{bin + 1}. The work continues.";
+        _status.Text = _state.Preferences.Bins.All(x => x == 100) ? "Aster complete. Management appreciates your contribution." : $"Numbers accepted into bin 0{bin + 1}. The work continues.";
         Motion.Enter((Control)_binGrid.Children[bin], 4);
     }
     public void Dispose() { _numbers.Dispose(); _state.Changed -= Update; }

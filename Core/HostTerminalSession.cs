@@ -29,11 +29,13 @@ public sealed class HostTerminalSession : IDisposable
         var modern = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "PowerShell", "7", "pwsh.exe");
         return File.Exists(modern) ? modern : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
     }
-    public HostTerminalSession(int columns = 100, int rows = 28, string? workingDirectory = null)
+    public HostTerminalSession(int columns = 100, int rows = 28, string? workingDirectory = null, string shell = "powershell", string? initialCommand = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Host terminals require Windows 10 1809 or later.");
+        if (initialCommand is not null && shell == "cmd") throw new ArgumentException("Initial commands use PowerShell.", nameof(initialCommand));
         Emulator = new TerminalEmulator(columns, rows, 5000);
-        var executable = FindPowerShell(); ShellName = Path.GetFileNameWithoutExtension(executable) == "pwsh" ? "PowerShell 7" : "Windows PowerShell";
+        var executable = shell == "cmd" ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe") : FindPowerShell();
+        ShellName = shell == "cmd" ? "Command Prompt" : Path.GetFileNameWithoutExtension(executable) == "pwsh" ? "PowerShell 7" : "Windows PowerShell";
         SafeFileHandle? inputRead = null, inputWrite = null, outputRead = null, outputWrite = null, job = null;
         IntPtr attributes = IntPtr.Zero, command = IntPtr.Zero, environment = IntPtr.Zero;
         var attributesReady = false;
@@ -50,7 +52,9 @@ public sealed class HostTerminalSession : IDisposable
             job = CreateJobObjectW(IntPtr.Zero, null); if (job.IsInvalid) throw new Win32Exception();
             var limits = new ExtendedLimits { Basic = new BasicLimits { Flags = 0x2000 } }; // Kill all owned descendants when the job closes.
             if (!SetInformationJobObject(job, 9, ref limits, (uint)Marshal.SizeOf<ExtendedLimits>())) throw new Win32Exception();
-            command = Marshal.StringToHGlobalUni($"\"{executable}\" -NoLogo -NoProfile");
+            var arguments = shell == "cmd" ? "/D" : "-NoLogo -NoProfile";
+            if (initialCommand is not null) arguments += " -NoExit -EncodedCommand " + Convert.ToBase64String(Encoding.Unicode.GetBytes(initialCommand));
+            command = Marshal.StringToHGlobalUni($"\"{executable}\" " + arguments);
             var variables = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables()) if (entry.Key is string key && entry.Value is string value) variables[key] = value;
             variables["TERM"] = "xterm-256color"; variables["COLORTERM"] = "truecolor"; variables["TERM_PROGRAM"] = "HammerOS";

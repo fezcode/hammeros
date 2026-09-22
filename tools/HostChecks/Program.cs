@@ -19,8 +19,24 @@ try
     model.Feed("\x1b[?1049hALTERNATE\x1b[?1049l"); Require(model.DumpScreen().Contains("RED"), "Primary screen lost"); Pass("Alternate-screen restoration");
     var paste = InputEncoder.EncodePaste("hello\x1b[201~world", true); Require(System.Text.Encoding.UTF8.GetString(paste) == "\x1b[200~helloworld\x1b[201~", "Bracketed paste escaped"); Pass("Bracketed paste control filtering");
     using var session = new HostTerminalSession(100, 26);
+    using (var launched = new HostTerminalSession(initialCommand: "Write-Output ('PALETTE_' + 'Cevapsız & Ω'); $paletteValue = 42"))
+    {
+        await Until(() => launched.Emulator.DumpScreen().Contains("PALETTE_Cevapsız & Ω"), "Palette command did not execute intact");
+        await Until(() => launched.Emulator.DumpScreen().Contains('>'), "Palette terminal did not remain interactive");
+        launched.Send("Write-Output ('VALUE_' + $paletteValue)\r"); await Until(() => launched.Emulator.DumpScreen().Contains("VALUE_42"), "Palette shell state was lost");
+        launched.Dispose(); await launched.Completion.WaitAsync(TimeSpan.FromSeconds(10)); Pass("Palette startup commands preserve Unicode and leave an interactive shell");
+    }
     string Dump() => session.Emulator.DumpScreen(100);
     await Until(() => Dump().Contains('>'), "PowerShell did not show a prompt"); Pass("Real PowerShell starts inside ConPTY");
+    using (var parallel = new HostTerminalSession(80, 24, Path.GetTempPath(), "cmd"))
+    {
+        await Until(() => parallel.Emulator.DumpScreen().Contains('>'), "Command Prompt did not start");
+        parallel.Send("echo CMD_INDEPENDENT\r"); await Until(() => parallel.Emulator.DumpScreen().Contains("CMD_INDEPENDENT"), "CMD command missing");
+        Require(!Dump().Contains("CMD_INDEPENDENT"), "Separate terminal outputs mixed");
+        parallel.Send("cd\r"); await Until(() => parallel.Emulator.DumpScreen().Contains(Path.GetTempPath().TrimEnd('\\'), StringComparison.OrdinalIgnoreCase), "Working directory not applied");
+        parallel.Dispose(); await parallel.Completion.WaitAsync(TimeSpan.FromSeconds(10)); Require(Alive(session.ProcessId), "Closing one tab ended another shell");
+        Pass("CMD and PowerShell run independently with a requested working directory");
+    }
     session.Send("Write-Output ('HAMMER_' + 'READY')\r"); await Until(() => Dump().Contains("HAMMER_READY"), "Command was not executed"); Pass("Commands execute and return real output");
     session.Resize(110, 33); session.Send("Write-Output ('WIDTH:' + $Host.UI.RawUI.WindowSize.Width)\r"); await Until(() => Dump().Contains("WIDTH:110"), "Shell did not receive its resize"); Pass("ConPTY size reaches the child shell");
     session.Send("Write-Output ([char]0x03A9 + 'MEGA')\r"); await Until(() => Dump().Contains("ΩMEGA"), "UTF-8 output missing"); Pass("Real Unicode output survives the pipe");

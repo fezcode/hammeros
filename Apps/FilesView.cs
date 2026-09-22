@@ -7,7 +7,7 @@ using HammerOS.Desktop;
 
 namespace HammerOS.Apps;
 
-public sealed class FilesView : UserControl, IDisposable
+public sealed class DepartmentFilesView : UserControl, IDisposable
 {
     private readonly SystemState _state;
     private readonly Action<string> _toast;
@@ -15,18 +15,20 @@ public sealed class FilesView : UserControl, IDisposable
     private readonly TextBlock _path = Ui.Text("", 12, Ui.Ink, true), _count = Ui.Label("");
     private readonly ContentControl _body = new();
     private readonly ScrollViewer _fileScroll;
-    private readonly TextBox _search = new() { Watermark = "Filter files…", Width = 150 };
+    private readonly TextBox _search = new() { Watermark = "Filter records…", Width = 165, Height = 36, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
     private string _cwd = "/department";
+    private string _sort = "Name";
+    private bool _descending;
     private string? _editing;
-    public FilesView(SystemState state, Action<string> toast)
+    public DepartmentFilesView(SystemState state, Action<string> toast)
     {
         _state = state; _toast = toast;
         var nav = Ui.Stack(9, Ui.Label("LOCATIONS")); nav.Margin = new Thickness(18, 26);
         foreach (var (name, path) in new[] { ("Department", "/department"), ("Refinement", "/department/refinement"), ("Handbook", "/department/handbook"), ("Personal", "/personal"), ("System", "/system") })
         { var b = Ui.Button(name, () => Navigate(path)); b.HorizontalAlignment = HorizontalAlignment.Stretch; b.HorizontalContentAlignment = HorizontalAlignment.Left; nav.Children.Add(b); }
-        nav.Children.Add(Ui.Rule()); nav.Children.Add(Ui.Label("VIRTUAL DRIVE")); nav.Children.Add(Ui.Text("H:  /  MDR-04", 11, Ui.Muted, true));
+        nav.Children.Add(Ui.Rule()); nav.Children.Add(Ui.Label("VIRTUAL DRIVE")); nav.Children.Add(Ui.Text("H:  /  HMR-04", 11, Ui.Muted, true));
         var sidebar = new Border { Width = 158, Background = Brush.Parse("#DFE4D6"), BorderBrush = Ui.Line, BorderThickness = new Thickness(0, 0, 1, 0), Child = nav };
-        var main = new Grid { RowDefinitions = new RowDefinitions("55,*,42") };
+        var main = new Grid { RowDefinitions = new RowDefinitions("58,*,48") };
         var toolbar = Ui.Columns("Auto,*,Auto", Ui.IconButton("back", "Parent directory", () => Navigate(SystemState.Parent(_cwd))), _path, _search); toolbar.Margin = new Thickness(12, 6); main.Children.Add(toolbar);
         _fileScroll = Ui.Scroll(_list); _body.Content = _fileScroll; Grid.SetRow(_body, 1); main.Children.Add(_body);
         var actions = Ui.Row(3, Ui.Button("+ File", () => Create(false)), Ui.Button("+ Folder", () => Create(true)));
@@ -39,8 +41,11 @@ public sealed class FilesView : UserControl, IDisposable
     {
         if (_editing is not null) return;
         _path.Text = "H: " + _cwd; _list.Children.Clear();
-        var header = Ui.Columns("*,95,75", Ui.Label("NAME"), Ui.Label("MODIFIED"), Ui.Label("KIND")); header.Margin = new Thickness(24, 12); _list.Children.Add(header); _list.Children.Add(Ui.Rule());
-        var files = _state.List(_cwd).Where(x => x.Name.Contains(_search.Text ?? "", StringComparison.OrdinalIgnoreCase)).ToArray(); _count.Text = $"{files.Length:00} ITEMS  ·  INTERNAL";
+        Button SortButton(string column) { var b = Ui.Button("", () => { _descending = _sort == column && !_descending; _sort = column; RenderList(); }); b.Content = Ui.Label(column.ToUpperInvariant() + (_sort == column ? _descending ? " ↓" : " ↑" : "")); b.Padding = new Thickness(0, 4); b.HorizontalContentAlignment = HorizontalAlignment.Left; return b; }
+        var header = Ui.Columns("*,110,75", SortButton("Name"), SortButton("Modified"), SortButton("Kind")); header.Margin = new Thickness(24, 8); _list.Children.Add(header); _list.Children.Add(Ui.Rule());
+        var candidates = _state.List(_cwd).Where(x => x.Name.Contains(_search.Text ?? "", StringComparison.OrdinalIgnoreCase)).OrderByDescending(x => x.IsDirectory);
+        var ordered = _sort == "Modified" ? (_descending ? candidates.ThenByDescending(x => x.Modified) : candidates.ThenBy(x => x.Modified)) : (_descending ? candidates.ThenByDescending(x => x.Name, StringComparer.OrdinalIgnoreCase) : candidates.ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase));
+        var files = ordered.ToArray(); _count.Text = $"{files.Length:00} ITEMS  ·  INTERNAL";
         foreach (var file in files)
         {
             var left = Ui.Row(13, new Glyph(file.IsDirectory ? "folder" : "notes") { Width = 20, Height = 20 }, Ui.Text(file.Name, 12));
@@ -52,7 +57,7 @@ public sealed class FilesView : UserControl, IDisposable
     private void OpenFile(VirtualFile file)
     {
         _editing = file.Path; _path.Text = "H: " + file.Path;
-        var editor = new TextBox { Text = file.Content, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = Ui.Mono, FontSize = 12, IsReadOnly = file.Path.StartsWith("/system"), VerticalAlignment = VerticalAlignment.Stretch };
+        var editor = new TextBox { Text = file.Content, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = Ui.Mono, FontSize = 12, IsReadOnly = file.Path.StartsWith("/system"), VerticalAlignment = VerticalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Top };
         var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto"), Margin = new Thickness(20) };
         var label = Ui.Label(file.Path.StartsWith("/system") ? "PROTECTED SYSTEM RECORD" : "RECORD EDITOR"); label.Margin = new Thickness(0, 0, 0, 12); grid.Children.Add(label); Grid.SetRow(editor, 1); grid.Children.Add(editor);
         var save = Ui.Button("Save record", () => _toast(_state.Write(file.Path, editor.Text ?? "")), "primary"); save.IsEnabled = !editor.IsReadOnly;
@@ -80,7 +85,7 @@ public sealed class NotesView : UserControl
     {
         var grid = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto"), Margin = new Thickness(30) };
         var heading = Ui.Heading("PERSONAL ARCHIVE  /  001", "Memoranda", "A place for thoughts that belong at work."); heading.Margin = new Thickness(0, 0, 22, 22); grid.Children.Add(heading);
-        var text = new TextBox { Text = state.Find("/personal/notes.txt")?.Content ?? "", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = Ui.Serif, FontSize = 19, Padding = new Thickness(20), Name = "NoteEditor" }; Grid.SetRow(text, 1); grid.Children.Add(text);
+        var text = new TextBox { Text = state.Find("/personal/notes.txt")?.Content ?? "", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = Ui.Serif, FontSize = 19, Padding = new Thickness(20), Name = "NoteEditor", VerticalContentAlignment = VerticalAlignment.Top }; Grid.SetRow(text, 1); grid.Children.Add(text);
         var status = Ui.Label("CHANGES ARE SAVED WHEN YOU PRESS SAVE.");
         var save = Ui.Button("Save memorandum", () => { var result = state.Write("/personal/notes.txt", text.Text ?? ""); status.Text = result == "Saved." ? "SAVED AT " + DateTime.Now.ToString("HH:mm") : result; toast(result); }, "primary");
         var footer = Ui.Columns("*,Auto", status, save); footer.Margin = new Thickness(0, 18, 0, 0); Grid.SetRow(footer, 2); grid.Children.Add(footer); Content = grid;

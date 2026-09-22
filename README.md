@@ -4,7 +4,7 @@
 
 **A fullscreen retro workspace for Windows, built as a native C# / Avalonia desktop app.**
 
-![Version](https://img.shields.io/badge/version-0.3.3-173B40?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.3.4-173B40?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%20x64-173B40?style=flat-square)
 ![Framework](https://img.shields.io/badge/.NET-10-173B40?style=flat-square)
 ![UI](https://img.shields.io/badge/Avalonia-11.3-173B40?style=flat-square)

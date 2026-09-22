@@ -80,6 +80,10 @@ public sealed class Glyph(string kind) : Control
         ["arrow"] = "M4,12 L20,12 M14,6 L20,12 L14,18",
         ["back"] = "M20,12 L4,12 M10,6 L4,12 L10,18",
         ["close"] = "M5,5 L19,19 M19,5 L5,19",
+        ["plus"] = "M12,5 L12,19 M5,12 L19,12",
+        ["play"] = "M3,3 L21,3 L21,21 L3,21 Z M9,7 L17,12 L9,17 Z",
+        ["calendar"] = "M3,5 L21,5 L21,22 L3,22 Z M3,10 L21,10 M7,2 L7,7 M17,2 L17,7 M7,14 L10,14 M14,14 L17,14 M7,18 L10,18",
+        ["chevron-down"] = "M6,9 L12,15 L18,9",
         ["maximize"] = "M4,4 L20,4 L20,20 L4,20 Z",
         ["minimize"] = "M5,16 L19,16",
         ["check"] = "M3,12 L9,18 L21,5",
@@ -110,24 +114,5 @@ public sealed class CorporateSeal : Control
             var text = new FormattedText("H", System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface(Ui.Serif, FontStyle.Normal, FontWeight.Bold), 42, Color);
             c.DrawText(text, new Point(32, 24));
         }
-    }
-}
-
-public sealed class DesktopBackdrop : Control
-{
-    public string Palette { get; set; } = "Petrol";
-    public bool Scanlines { get; set; } = true;
-    public override void Render(DrawingContext c)
-    {
-        var bg = Palette == "Evergreen" ? "#1B3430" : Palette == "Midnight" ? "#152633" : "#16343B";
-        c.FillRectangle(Brush.Parse(bg), Bounds);
-        var pen = new Pen(Brush.Parse("#194FC0B1"), 1);
-        for (var x = 30; x < Bounds.Width; x += 52)
-            for (var y = 28; y < Bounds.Height; y += 52) c.DrawEllipse(pen.Brush, null, new Point(x, y), .7, .7);
-        var center = new Point(Bounds.Width * .85, Bounds.Height * .54);
-        var globePen = new Pen(Brush.Parse("#144AB9AD"), 1);
-        c.DrawEllipse(null, globePen, center, 330, 330); c.DrawEllipse(null, globePen, center, 205, 330); c.DrawEllipse(null, globePen, center, 78, 330);
-        c.DrawEllipse(null, globePen, center, 330, 95); c.DrawEllipse(null, globePen, center, 330, 240);
-        if (Scanlines) for (var y = 0; y < Bounds.Height; y += 4) c.DrawLine(new Pen(Brush.Parse("#07000000"), 1), new Point(0, y), new Point(Bounds.Width, y));
     }
 }

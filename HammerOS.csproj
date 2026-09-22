@@ -4,10 +4,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.0</Version>
+    <Version>0.3.4</Version>
+    <Product>HammerOS</Product>
     <Company>Workhammer</Company>
+    <Authors>Samil Bulbul</Authors>
+    <Description>A fullscreen retro Windows workspace.</Description>
+    <Copyright>Copyright (c) 2026 Samil Bulbul</Copyright>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/HammerOS.ico</ApplicationIcon>
+    <!-- Keep the publish output to the single executable: no reference .pdb or
+         .xml docs beside it, which is what the installer payload check enforces. -->
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tools/**;tests/**;vendor/**" />
@@ -18,5 +25,6 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.2" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
   </ItemGroup>
 </Project>

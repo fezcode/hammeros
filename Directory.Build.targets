@@ -1,0 +1,8 @@
+<Project>
+  <!-- Only the native WebView2 controller is used; avoid importing the WPF/Forms controls. -->
+  <Target Name="UseOnlyWebView2Core" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="$([System.String]::Copy('%(Reference.Identity)').EndsWith('Microsoft.Web.WebView2.Wpf.dll')) Or $([System.String]::Copy('%(Reference.Identity)').EndsWith('Microsoft.Web.WebView2.WinForms.dll'))" />
+    </ItemGroup>
+  </Target>
+</Project>

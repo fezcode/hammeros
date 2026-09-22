@@ -1,0 +1,117 @@
+[app]
+name    = "HammerOS"
+version = "0.3.4"
+id      = "io.fezcode.hammeros"
+icon    = "Assets/HammerOS.ico"
+
+[meta]
+publisher = "Samil Bulbul"
+comments  = "A fullscreen retro Windows workspace with real files, shells and embedded apps"
+
+[ui]
+# huh is the only shipped theme that asks the engine for a real Mica backdrop,
+# so the wizard picks up the desktop tint behind it instead of painting its own
+# ground. It lays the steps out as a rail down the left. Forge falls back to an
+# opaque window automatically below Windows 11 22H2.
+theme        = "huh"
+window_title = "HammerOS Setup"
+
+[install]
+# Per-user by design: HammerOS needs no elevation, and tiled reparents windows
+# owned by the signed-in user. A Program Files default would trigger UAC.
+default_dir = "${LOCALAPPDATA}/Programs/HammerOS"
+
+# Everything under ${INSTALLDIR} is app payload and goes on uninstall. The session
+# — session.json and the WebView2 profile — lives in %LOCALAPPDATA%\HammerOS and is
+# only removed when the user ticks "Also remove my settings and data".
+[uninstall]
+settings_dirs = ["${LOCALAPPDATA}/HammerOS"]
+
+# Step titles double as the labels in huh's left rail, so they are short. The
+# rail already heads itself with "HAMMEROS 0.3.4", and each body carries the
+# version where it matters; version.ps1 rewrites those.
+[[steps]]
+type  = "welcome"
+title = "Welcome"
+body  = "This wizard will install HammerOS 0.3.4 on your computer.\n\nHammerOS is a fullscreen retro workspace: your real files and drives, independent PowerShell and CMD tabs, Windows applications embedded in tiled, and an unreasonably reassuring employee intranet.\n\nClick Next to continue."
+
+[[steps]]
+type  = "license"
+title = "License"
+body  = "Please review the license terms below before continuing the installation."
+file  = "LICENSE.txt"
+
+[[steps]]
+type  = "folder"
+title = "Location"
+body  = "Choose where to install HammerOS 0.3.4."
+
+[[steps]]
+type  = "shortcuts"
+title = "Shortcuts"
+body  = "Check the items you would like the installer to perform."
+
+[[steps]]
+type  = "install"
+title = "Installing"
+body  = "Copying files to your system."
+
+[[steps]]
+type  = "finish"
+title = "Finished"
+body  = "HammerOS has been installed successfully.\n\nF11 switches between fullscreen and windowed. Ctrl+Space opens the application directory, Alt+Space searches everything.\n\nBrowser and Media Player use the Microsoft Edge WebView2 Runtime that ships with Windows.\n\nClick Finish to close the installer."
+
+[[steps.launches]]
+kind    = "app"
+target  = "${INSTALLDIR}/HammerOS.exe"
+label   = "Run HammerOS after install"
+checked = true
+
+[[dirs]]
+# The whole install image, and the only thing installed. installer.ps1 supports
+# win-x64 only; keep this aligned with that payload.
+#
+# LICENSE.txt and THIRD-PARTY.md are copied in here by build.ps1 rather than
+# declared as [[files]]: Forge stages the license step's `file` first as
+# bundle-only and then dedups [[files]] by source path, so a root
+# `src = "LICENSE.txt"` entry is silently dropped and never lands on disk.
+# Staged under dist/ the path differs, so it survives. installer.ps1 fails the
+# build if either file is missing from the payload, or if a [[files]] entry
+# collides with the icon or a license step this way.
+src = "dist/HammerOS"
+dst = "${INSTALLDIR}"
+
+# Shortcut icons point at the executable, which carries the icon as a resource.
+# Do not add a [[files]] entry for Assets/HammerOS.ico to copy an app.ico beside
+# it: Forge stages [app] icon first as bundle-only and then dedups [[files]] by
+# source path, so the copy is silently dropped and the shortcuts end up pointing
+# at a file that was never written.
+[[shortcuts]]
+target   = "${INSTALLDIR}/HammerOS.exe"
+location = "${DESKTOP}/HammerOS.lnk"
+name     = "HammerOS"
+icon     = "${INSTALLDIR}/HammerOS.exe"
+label    = "Create Desktop Shortcut"
+optional = true
+default  = true
+
+[[shortcuts]]
+target   = "${INSTALLDIR}/HammerOS.exe"
+location = "${STARTMENU}/HammerOS/HammerOS.lnk"
+name     = "HammerOS"
+icon     = "${INSTALLDIR}/HammerOS.exe"
+label    = "Create Start Menu Entry"
+optional = true
+default  = true
+
+[[registry]]
+hive  = "HKCU"
+key   = "Software\\fezcode\\HammerOS"
+value = "InstallDir"
+data  = "${INSTALLDIR}"
+
+[[registry]]
+hive  = "HKCU"
+key   = "Software\\fezcode\\HammerOS"
+value = "Version"
+data  = "0.3.4"
