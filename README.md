@@ -49,7 +49,7 @@ dotnet run --project HammerOS.csproj -- --windowed
 | tiled | Launch or attach supported Windows application windows in grid, columns, rows, or focus layouts. Detach restores their desktop positions. |
 | Intranet | Browse company pages with address navigation, back/forward history, and simulated connection state. |
 | Memoranda | Edit and save `/personal/notes.txt`, shared with the virtual filesystem. |
-| Settings | Change palette, motion, CRT texture, employee designation, and fullscreen mode. |
+| Settings | Change palette, motion, colliding windows, CRT texture, employee designation, and fullscreen mode. |
 | Control Panel | Start and stop simulated services and inspect session activity. |
 | Network | Inspect actual Windows adapters and open Windows network settings; Department diagnostics remain simulated. |
 | Wellness | A guided, animated one-minute breathing session and company-approved facts. |
@@ -63,7 +63,7 @@ Right-click an app on the bottom bar for restore, minimize, maximize, a new inst
 
 ![The application directory over the animated Earth wallpaper](screenshots/wallpapers.png)
 
-**Settings → Wireframe wallpapers** offers the still Classic backdrop, a rotating Earth, drifting mountain terrain, and rolling Waves. Wallpaper and palette choices persist. **Animate live wallpaper** pauses the scene independently; turning off Smooth motion also pauses it. Animation stops while HammerOS is locked or minimized.
+**Settings → Wireframe wallpapers** offers the still Classic backdrop, a rotating Earth, drifting mountain terrain, rolling Waves, and a spinning Torus. The palette also tints window title bars, the taskbar, buttons and the dark screens of Refinement, terminals, the editor and Sudoku. Wallpaper and palette choices persist. **Animate live wallpaper** pauses the scene independently; turning off Smooth motion also pauses it. Animation stops while HammerOS is locked or minimized.
 
 ## Real files
 
@@ -99,7 +99,7 @@ Embedding depends on the application's compatibility with Windows `SetParent`. S
 
 ![Hammer Search listing quick actions over the desktop](screenshots/search.png)
 
-**Alt+Space** opens Hammer Search while HammerOS has keyboard focus. Type an app name to open it, `switch editor` to focus an existing window, or `toggle fullscreen`, `toggle smooth motion`, `toggle CRT texture`, or `toggle edge resizing` for quick settings. Use the arrow keys and Enter; Escape or a click outside dismisses the palette. Search also includes available Windows Start menu shortcuts, which open outside HammerOS. Prefix a command with `>` or `run ` to execute it in a new real PowerShell tab; its output stays visible and the shell remains interactive. The Workspace menu also provides Search when a native embedded app owns keyboard focus.
+**Alt+Space** opens Hammer Search while HammerOS has keyboard focus. Type an app name to open it, `switch editor` to focus an existing window, or `toggle fullscreen`, `toggle smooth motion`, `toggle CRT texture`, `toggle edge resizing`, or `toggle colliding windows` for quick settings. Use the arrow keys and Enter; Escape or a click outside dismisses the palette. Search also includes available Windows Start menu shortcuts, which open outside HammerOS. Prefix a command with `>` or `run ` to execute it in a new real PowerShell tab; its output stays visible and the shell remains interactive. The Workspace menu also provides Search when a native embedded app owns keyboard focus.
 
 ### Keyboard
 

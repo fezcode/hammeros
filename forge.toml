@@ -1,6 +1,6 @@
 [app]
 name    = "HammerOS"
-version = "0.3.4"
+version = "0.3.5"
 id      = "io.fezcode.hammeros"
 icon    = "Assets/HammerOS.ico"
 
@@ -28,12 +28,12 @@ default_dir = "${LOCALAPPDATA}/Programs/HammerOS"
 settings_dirs = ["${LOCALAPPDATA}/HammerOS"]
 
 # Step titles double as the labels in huh's left rail, so they are short. The
-# rail already heads itself with "HAMMEROS 0.3.4", and each body carries the
+# rail already heads itself with "HAMMEROS 0.3.5", and each body carries the
 # version where it matters; version.ps1 rewrites those.
 [[steps]]
 type  = "welcome"
 title = "Welcome"
-body  = "This wizard will install HammerOS 0.3.4 on your computer.\n\nHammerOS is a fullscreen retro workspace: your real files and drives, independent PowerShell and CMD tabs, Windows applications embedded in tiled, and an unreasonably reassuring employee intranet.\n\nClick Next to continue."
+body  = "This wizard will install HammerOS 0.3.5 on your computer.\n\nHammerOS is a fullscreen retro workspace: your real files and drives, independent PowerShell and CMD tabs, Windows applications embedded in tiled, and an unreasonably reassuring employee intranet.\n\nClick Next to continue."
 
 [[steps]]
 type  = "license"
@@ -44,7 +44,7 @@ file  = "LICENSE.txt"
 [[steps]]
 type  = "folder"
 title = "Location"
-body  = "Choose where to install HammerOS 0.3.4."
+body  = "Choose where to install HammerOS 0.3.5."
 
 [[steps]]
 type  = "shortcuts"
@@ -114,4 +114,4 @@ data  = "${INSTALLDIR}"
 hive  = "HKCU"
 key   = "Software\\fezcode\\HammerOS"
 value = "Version"
-data  = "0.3.4"
+data  = "0.3.5"

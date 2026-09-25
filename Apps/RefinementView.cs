@@ -22,10 +22,10 @@ public sealed class RefinementView : UserControl, IDisposable
         var fileTitle = new TextBlock { Text = "Aster", FontSize = 34, FontFamily = Ui.Serif, Foreground = Ui.Phosphor };
         var heading = Ui.Stack(6, Ui.Label("ACTIVE FILE  /  0X 4A 92", Brush.Parse("#749D97")), fileTitle);
         var right = Ui.Stack(6, Ui.Label("QUARTERLY QUOTA", Brush.Parse("#749D97")), _quota); right.HorizontalAlignment = HorizontalAlignment.Right;
-        var header = new Border { Padding = new Thickness(27, 16), BorderBrush = Brush.Parse("#35565A"), BorderThickness = new Thickness(0, 0, 0, 1), Child = Ui.Columns("*,Auto", heading, right) }; root.Children.Add(header);
+        var header = new Border { Padding = new Thickness(27, 16), BorderBrush = Tint.DarkLine, BorderThickness = new Thickness(0, 0, 0, 1), Child = Ui.Columns("*,Auto", heading, right) }; root.Children.Add(header);
         _numbers = new NumberField(state); Grid.SetRow(_numbers, 1); root.Children.Add(_numbers);
         _numbers.SelectionChanged += () => _status.Text = _numbers.Selected.Count == 0 ? "Select the numbers that speak to you." : $"{_numbers.Selected.Count:00} numbers selected. Choose a bin below.";
-        var hint = new Border { Padding = new Thickness(27, 0), BorderThickness = new Thickness(0, 1, 0, 0), BorderBrush = Brush.Parse("#35565A"), Child = Ui.Columns("*,Auto", _status, Ui.Label("CLICK TO SELECT · ESC TO CLEAR", Brush.Parse("#749D97"))) }; Grid.SetRow(hint, 2); root.Children.Add(hint);
+        var hint = new Border { Padding = new Thickness(27, 0), BorderThickness = new Thickness(0, 1, 0, 0), BorderBrush = Tint.DarkLine, Child = Ui.Columns("*,Auto", _status, Ui.Label("CLICK TO SELECT · ESC TO CLEAR", Brush.Parse("#749D97"))) }; Grid.SetRow(hint, 2); root.Children.Add(hint);
         var binGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"), Margin = new Thickness(27, 15, 27, 12) };
         for (var i = 0; i < 5; i++)
         {
@@ -34,7 +34,7 @@ public sealed class RefinementView : UserControl, IDisposable
             bin.Content = Ui.Stack(9); Grid.SetColumn(bin, i); binGrid.Children.Add(bin);
         }
         Grid.SetRow(binGrid, 3); root.Children.Add(binGrid);
-        var footer = new Border { Background = Brush.Parse("#193A40"), Padding = new Thickness(27, 0), Child = Ui.Columns("*,Auto", Ui.Label("HMR  /  REFINEMENT PROTOCOL 2.1", Brush.Parse("#88A9A2")), Ui.Label("EVERY PATTERN HAS A PLACE.", Brush.Parse("#88A9A2"))) }; Grid.SetRow(footer, 4); root.Children.Add(footer);
+        var footer = new Border { Background = Tint.Bar, Padding = new Thickness(27, 0), Child = Ui.Columns("*,Auto", Ui.Label("HMR  /  REFINEMENT PROTOCOL 2.1", Brush.Parse("#88A9A2")), Ui.Label("EVERY PATTERN HAS A PLACE.", Brush.Parse("#88A9A2"))) }; Grid.SetRow(footer, 4); root.Children.Add(footer);
         _binGrid = binGrid; Content = root; state.Changed += Update; Update();
     }
     private readonly Grid _binGrid;
@@ -46,7 +46,7 @@ public sealed class RefinementView : UserControl, IDisposable
             var bin = (Button)_binGrid.Children[i]; var stack = (StackPanel)bin.Content!; stack.Children.Clear();
             var percent = _state.Preferences.Bins[i];
             stack.Children.Add(Ui.Columns("*,Auto", Ui.Text($"0{i + 1}", 20, Ui.Phosphor, true), Ui.Text($"{percent}%", 11, Ui.Phosphor, true)));
-            var track = new Grid { Height = 4, Background = Brush.Parse("#345457"), ColumnDefinitions = new ColumnDefinitions($"{Math.Max(.001, percent)}*,{Math.Max(.001, 100 - percent)}*") };
+            var track = new Grid { Height = 4, Background = Tint.DarkLine, ColumnDefinitions = new ColumnDefinitions($"{Math.Max(.001, percent)}*,{Math.Max(.001, 100 - percent)}*") };
             track.Children.Add(new Border { Background = Ui.Phosphor }); stack.Children.Add(track);
             stack.Children.Add(Ui.Label("A  B  C  D", Brush.Parse("#719B95")));
         }
@@ -121,7 +121,7 @@ public sealed class NumberField : Control, IDisposable
             var x = 18 + (i % 24) * cellW; var y = 13 + (i / 24) * cellH;
             var drift = _state.Preferences.Motion ? Math.Sin(_time * .7 + i * 1.9) * 2.0 : 0;
             var selected = Selected.Contains(i); var hover = _hover >= 0 && Math.Abs(i % 24 - _hover % 24) <= 1 && Math.Abs(i / 24 - _hover / 24) <= 1;
-            if (selected || hover) c.DrawRectangle(Brush.Parse(selected ? "#315D5F" : "#1B4247"), selected ? new Pen(Brush.Parse("#668E84"), .5) : null, new Rect(x, y, cellW, cellH));
+            if (selected || hover) c.DrawRectangle(selected ? Tint.DarkHover : Tint.DarkRaised, selected ? new Pen(Brush.Parse("#668E84"), .5) : null, new Rect(x, y, cellW, cellH));
             var text = _textCache[hover ? 3 : selected ? 2 : i % 7 == 0 ? 1 : 0, _digits[i]];
             using (c.PushOpacity(_collecting.Contains(i) ? 1 - _collection : 1))
                 c.DrawText(text, new Point(x + (cellW - text.Width) / 2, y + (cellH - text.Height) / 2 + drift + (_collecting.Contains(i) ? 50 * _collection : 0)));

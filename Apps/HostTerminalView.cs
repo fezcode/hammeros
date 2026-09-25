@@ -32,7 +32,7 @@ public sealed class HostTerminalView : UserControl, IDisposable
         var copy = Ui.Button("Copy", () => _ = _surface.Copy(), "dark"); copy.FontSize = 10; copy.Padding = new Thickness(8, 4);
         var paste = Ui.Button("Paste", () => _ = _surface.Paste(), "dark"); paste.FontSize = 10; paste.Padding = new Thickness(8, 4);
         var restart = Ui.Button("Restart", () => Restart(), "dark"); restart.FontSize = 10; restart.Padding = new Thickness(8, 4);
-        var footer = new Border { Background = Brush.Parse("#193A40"), Padding = new Thickness(14, 0), Child = Ui.Columns("*,Auto", _status, Ui.Row(0, copy, paste, restart)) }; Grid.SetRow(footer, 1); root.Children.Add(footer); Content = root;
+        var footer = new Border { Background = Tint.Bar, Padding = new Thickness(14, 0), Child = Ui.Columns("*,Auto", _status, Ui.Row(0, copy, paste, restart)) }; Grid.SetRow(footer, 1); root.Children.Add(footer); Content = root;
     }
     public async void Start()
     {

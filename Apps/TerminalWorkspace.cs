@@ -49,9 +49,9 @@ public sealed class TerminalView : UserControl, IDisposable
         var scroller = new ScrollViewer { Content = _strip, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         var controls = Ui.Row(2, add, more); controls.VerticalAlignment = VerticalAlignment.Center; controls.Margin = new Thickness(8, 0, 0, 0);
         _strip.VerticalAlignment = VerticalAlignment.Center;
-        var toolbar = new Border { Name = "TerminalToolbar", Background = Brush.Parse("#18363D"), BorderBrush = Brush.Parse("#35545A"), BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(8, 0), Child = Ui.Columns("*,Auto", scroller, controls) };
+        var toolbar = new Border { Name = "TerminalToolbar", Background = Tint.Bar, BorderBrush = Tint.DarkLine, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(8, 0), Child = Ui.Columns("*,Auto", scroller, controls) };
         var root = new Grid { RowDefinitions = new RowDefinitions("48,*,29") }; root.Children.Add(toolbar); Grid.SetRow(_body, 1); root.Children.Add(_body);
-        var status = new Border { Background = Brush.Parse("#18363D"), Padding = new Thickness(16, 0), Child = Ui.Columns("*,Auto", _mode, Ui.Label("CTRL+TAB  SWITCH", Ui.Muted)) }; Grid.SetRow(status, 2); root.Children.Add(status); Content = root;
+        var status = new Border { Background = Tint.Bar, Padding = new Thickness(16, 0), Child = Ui.Columns("*,Auto", _mode, Ui.Label("CTRL+TAB  SWITCH", Ui.Muted)) }; Grid.SetRow(status, 2); root.Children.Add(status); Content = root;
         AddDepartment(); AddHost(activate: false);
         AddHandler(KeyDownEvent, (_, e) =>
         {

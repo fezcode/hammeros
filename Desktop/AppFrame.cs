@@ -25,7 +25,15 @@ public sealed class AppFrame : Border
     private Point _origin;
     private readonly List<Border> _resizeHandles = [];
     private Border? _cornerGrip;
-    private bool _busy;
+    private bool _busy, _leaving;
+    private Rect? _pendingTarget;
+    private static int _maximizeCounter;
+    public int MaximizedAt { get; private set; }
+    // On screen and taking up room. Windows fading out to minimize or close already count as gone.
+    public bool IsSolid => IsVisible && !IsMinimized && !_leaving;
+    // Where the window is, or where its running animation will leave it.
+    public Rect Footprint => _pendingTarget ?? new Rect(Coordinate(Canvas.GetLeft(this)), Coordinate(Canvas.GetTop(this)), Width, Height);
+    private static double Coordinate(double value) => double.IsNaN(value) ? 0 : value;
 
     public AppFrame(ShellWindow shell, AppDefinition app, Control content, double width, double height, int instance = 1)
     {
@@ -37,7 +45,7 @@ public sealed class AppFrame : Border
         var titleText = Ui.Label(DisplayName.ToUpperInvariant(), Ui.Ink); titleText.LetterSpacing = 1.2; titleText.TextTrimming = TextTrimming.CharacterEllipsis;
         var titleLeft = Ui.Row(12, new Glyph(app.Symbol) { Width = 16, Height = 16 }, titleText); titleLeft.Margin = new Thickness(16, 0); titleLeft.Background = Brushes.Transparent;
         var buttons = Ui.Row(0, Ui.IconButton("minimize", "Minimize", Minimize), Ui.IconButton("maximize", "Maximize / restore", ToggleMaximize), Ui.IconButton("close", "Close application", Close));
-        _title = new Border { Background = Brush.Parse("#E4E8D8"), BorderBrush = Ui.Line, BorderThickness = new Thickness(0, 0, 0, 1), Child = Ui.Columns("*,Auto", titleLeft, buttons) };
+        _title = new Border { Background = Tint.TitleActive, BorderBrush = Ui.Line, BorderThickness = new Thickness(0, 0, 0, 1), Child = Ui.Columns("*,Auto", titleLeft, buttons) };
         _title.Transitions = new Transitions { new BrushTransition { Property = BackgroundProperty, Duration = TimeSpan.FromMilliseconds(180) } };
         root.Children.Add(_title);
         var area = new Grid { ClipToBounds = true, Children = { content } }; Grid.SetRow(area, 1); root.Children.Add(area);
@@ -63,9 +71,9 @@ public sealed class AppFrame : Border
         UpdateResizeHandles();
         AddHandler(PointerPressedEvent, (_, _) => shell.FocusFrame(this), Avalonia.Interactivity.RoutingStrategies.Tunnel);
         bool IsTitleButton(object? source) => source is Visual visual && visual.GetSelfAndVisualAncestors().OfType<Button>().Any();
-        _title.PointerPressed += (_, e) => { if (_busy || IsTitleButton(e.Source) || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || IsMaximized) return; Motion.Cancel(this); Opacity = 1; RenderTransform = null; _drag = e.GetPosition(shell.Workspace); _origin = new Point(Canvas.GetLeft(this), Canvas.GetTop(this)); e.Pointer.Capture(_title); };
-        _title.PointerMoved += (_, e) => { if (_drag is not { } start) return; var delta = e.GetPosition(shell.Workspace) - start; SetPosition(_origin.X + delta.X, _origin.Y + delta.Y); };
-        _title.PointerReleased += (_, e) => { _drag = null; e.Pointer.Capture(null); };
+        _title.PointerPressed += (_, e) => { if (_busy || IsTitleButton(e.Source) || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || IsMaximized) return; Motion.Cancel(this); _pendingTarget = null; Opacity = 1; RenderTransform = null; _drag = e.GetPosition(shell.Workspace); _origin = new Point(Canvas.GetLeft(this), Canvas.GetTop(this)); e.Pointer.Capture(_title); };
+        _title.PointerMoved += (_, e) => { if (_drag is not { } start) return; var delta = e.GetPosition(shell.Workspace) - start; MoveTo(_origin.X + delta.X, _origin.Y + delta.Y); };
+        _title.PointerReleased += (_, e) => { if (_drag is null) return; _drag = null; e.Pointer.Capture(null); _shell.Reflow(); };
         _title.DoubleTapped += (_, e) => { if (!IsTitleButton(e.Source)) ToggleMaximize(); };
     }
     public void UpdateResizeHandles()
@@ -76,7 +84,7 @@ public sealed class AppFrame : Border
         handle.PointerPressed += (_, e) =>
         {
             if (_busy || IsMaximized || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-            Motion.Cancel(this); Opacity = 1; RenderTransform = null; start = e.GetPosition(_shell.Workspace);
+            Motion.Cancel(this); _pendingTarget = null; Opacity = 1; RenderTransform = null; start = e.GetPosition(_shell.Workspace);
             original = new Rect(Canvas.GetLeft(this), Canvas.GetTop(this), Width, Height); e.Pointer.Capture(handle); e.Handled = true;
         };
         handle.PointerMoved += (_, e) =>
@@ -91,28 +99,37 @@ public sealed class AppFrame : Border
             if (horizontal > 0) right = Math.Clamp(original.Right + delta.X, left + minWidth, workspace.Width);
             if (vertical < 0) top = Math.Clamp(original.Top + delta.Y, 0, bottom - minHeight);
             if (vertical > 0) bottom = Math.Clamp(original.Bottom + delta.Y, top + minHeight, workspace.Height);
+            if (_shell.Collisions) { var fit = WindowCollisions.Resize(original, new Rect(left, top, right - left, bottom - top), _shell.Obstacles(this)); left = fit.Left; right = fit.Right; top = fit.Top; bottom = fit.Bottom; }
             Width = right - left; Height = bottom - top; Canvas.SetLeft(this, left); Canvas.SetTop(this, top); e.Handled = true;
         };
-        handle.PointerReleased += (_, e) => { start = null; e.Pointer.Capture(null); e.Handled = true; };
+        handle.PointerReleased += (_, e) => { if (start is null) return; start = null; e.Pointer.Capture(null); e.Handled = true; _shell.Reflow(); };
         handle.PointerCaptureLost += (_, _) => start = null;
     }
     public void SetPosition(double x, double y)
     { Canvas.SetLeft(this, Math.Clamp(x, 0, Math.Max(0, _shell.Workspace.Bounds.Width - Width))); Canvas.SetTop(this, Math.Clamp(y, 0, Math.Max(0, _shell.Workspace.Bounds.Height - Height))); }
+    private void MoveTo(double x, double y)
+    {
+        if (!_shell.Collisions) { SetPosition(x, y); return; }
+        var bounds = _shell.Workspace.Bounds;
+        var to = new Point(Math.Clamp(x, 0, Math.Max(0, bounds.Width - Width)), Math.Clamp(y, 0, Math.Max(0, bounds.Height - Height)));
+        var at = WindowCollisions.Slide(Footprint, to, _shell.Obstacles(this)); Canvas.SetLeft(this, at.X); Canvas.SetTop(this, at.Y);
+    }
     public void Constrain()
     {
-        if (IsMaximized) { Width = _shell.Workspace.Bounds.Width; Height = _shell.Workspace.Bounds.Height; Canvas.SetLeft(this, 0); Canvas.SetTop(this, 0); }
+        if (IsMaximized && !_shell.Collisions) { Width = _shell.Workspace.Bounds.Width; Height = _shell.Workspace.Bounds.Height; Canvas.SetLeft(this, 0); Canvas.SetTop(this, 0); }
         else { Width = Math.Min(Width, _shell.Workspace.Bounds.Width); Height = Math.Min(Height, _shell.Workspace.Bounds.Height); SetPosition(Canvas.GetLeft(this), Canvas.GetTop(this)); }
     }
-    public void SetActive(bool active) { _title.Background = Brush.Parse(active ? "#E9EBDD" : "#CCD6C9"); BorderBrush = Brush.Parse(active ? "#BDCCBC" : "#82968A"); }
+    public void SetActive(bool active) { _title.Background = active ? Tint.TitleActive : Tint.TitleInactive; BorderBrush = active ? Tint.BorderActive : Tint.BorderInactive; }
     public void Minimize()
     {
-        if (_busy) return; _busy = true;
+        if (_busy) return; _busy = true; _leaving = true; _pendingTarget = null;
         var move = new TranslateTransform(); RenderTransform = move;
         var opacity = Opacity;
-        Motion.For(this, 210, t => { Opacity = opacity * (1 - t); move.Y = t * 34; }, () => { IsMinimized = true; IsVisible = false; _busy = false; _shell.UpdateTaskbar(); });
+        Motion.For(this, 210, t => { Opacity = opacity * (1 - t); move.Y = t * 34; }, () => { IsMinimized = true; IsVisible = false; _busy = false; _leaving = false; _shell.UpdateTaskbar(); });
+        _shell.Reflow();
     }
     public void Restore()
-    { if (_busy) return; if (!IsMinimized) { _shell.FocusFrame(this); return; } IsMinimized = false; IsVisible = true; Motion.Enter(this, 24); _shell.FocusFrame(this); _shell.UpdateTaskbar(); }
+    { if (_busy) return; if (!IsMinimized) { _shell.FocusFrame(this); return; } IsMinimized = false; IsVisible = true; _shell.Settle(this); Motion.Enter(this, 24); _shell.FocusFrame(this); _shell.UpdateTaskbar(); }
     public void Close()
     {
         if (_busy) return;
@@ -122,24 +139,39 @@ public sealed class AppFrame : Border
     }
     private void CloseCore()
     {
-        if (_busy) return; _busy = true;
+        if (_busy) return; _busy = true; _leaving = true; _pendingTarget = null;
         var opacity = Opacity;
         Motion.For(this, 160, t => Opacity = opacity * (1 - t), () => _shell.RemoveFrame(this));
+        _shell.Reflow();
     }
     public void ToggleMaximize()
     {
         if (_busy) return;
         var from = new Rect(Canvas.GetLeft(this), Canvas.GetTop(this), Width, Height);
         if (!IsMaximized) _restore = from;
-        var target = IsMaximized ? _restore : new Rect(0, 0, _shell.Workspace.Bounds.Width, _shell.Workspace.Bounds.Height);
+        var target = !_shell.Collisions ? IsMaximized ? _restore : new Rect(0, 0, _shell.Workspace.Bounds.Width, _shell.Workspace.Bounds.Height)
+            : IsMaximized ? _shell.Clearing(this, _restore) : _shell.MaximumArea(this);
         IsMaximized = !IsMaximized; UpdateResizeHandles(); _busy = true;
-        Motion.Cancel(this); Opacity = 1; RenderTransform = null;
-        Motion.For(this, 240, t => { Canvas.SetLeft(this, from.X + (target.X - from.X) * t); Canvas.SetTop(this, from.Y + (target.Y - from.Y) * t); Width = from.Width + (target.Width - from.Width) * t; Height = from.Height + (target.Height - from.Height) * t; }, () => { _busy = false; Constrain(); });
+        if (IsMaximized) MaximizedAt = ++_maximizeCounter;
+        Motion.Cancel(this); Opacity = 1; RenderTransform = null; _pendingTarget = target;
+        Motion.For(this, 240, t => { Canvas.SetLeft(this, from.X + (target.X - from.X) * t); Canvas.SetTop(this, from.Y + (target.Y - from.Y) * t); Width = from.Width + (target.Width - from.Width) * t; Height = from.Height + (target.Height - from.Height) * t; }, () => { _pendingTarget = null; _busy = false; Constrain(); _shell.Reflow(); });
     }
     public void ArrangeTo(Rect target)
     {
-        Motion.Cancel(this); _busy = false; IsMaximized = false; UpdateResizeHandles(); IsMinimized = false; IsVisible = true; Opacity = 1; RenderTransform = null;
-        var from = new Rect(Canvas.GetLeft(this), Canvas.GetTop(this), Width, Height);
-        Motion.For(this, 240, t => { Width = from.Width + (target.Width - from.Width) * t; Height = from.Height + (target.Height - from.Height) * t; SetPosition(from.X + (target.X - from.X) * t, from.Y + (target.Y - from.Y) * t); }, () => { Constrain(); _shell.UpdateTaskbar(); });
+        Motion.Cancel(this); _busy = false; _leaving = false; IsMaximized = false; UpdateResizeHandles(); IsMinimized = false; IsVisible = true; Opacity = 1; RenderTransform = null;
+        var from = new Rect(Canvas.GetLeft(this), Canvas.GetTop(this), Width, Height); _pendingTarget = target;
+        Motion.For(this, 240, t => { Width = from.Width + (target.Width - from.Width) * t; Height = from.Height + (target.Height - from.Height) * t; SetPosition(from.X + (target.X - from.X) * t, from.Y + (target.Y - from.Y) * t); }, () => { _pendingTarget = null; Constrain(); _shell.UpdateTaskbar(); });
+    }
+    // Moves and resizes without changing window state; used when collisions push windows around.
+    // A window mid-animation (maximizing, minimizing, closing) is left alone: its completion reflows.
+    public void FitTo(Rect target, bool animate = true)
+    {
+        if (_busy) return;
+        var from = Footprint;
+        if (Math.Abs(from.X - target.X) < .5 && Math.Abs(from.Y - target.Y) < .5 && Math.Abs(from.Width - target.Width) < .5 && Math.Abs(from.Height - target.Height) < .5) return;
+        void Apply(Rect r) { Canvas.SetLeft(this, r.X); Canvas.SetTop(this, r.Y); Width = r.Width; Height = r.Height; }
+        if (!animate) { _pendingTarget = null; Apply(target); return; }
+        from = new Rect(Coordinate(Canvas.GetLeft(this)), Coordinate(Canvas.GetTop(this)), Width, Height); _pendingTarget = target; Opacity = 1; RenderTransform = null;
+        Motion.For(this, 240, t => Apply(new Rect(from.X + (target.X - from.X) * t, from.Y + (target.Y - from.Y) * t, from.Width + (target.Width - from.Width) * t, from.Height + (target.Height - from.Height) * t)), () => _pendingTarget = null);
     }
 }

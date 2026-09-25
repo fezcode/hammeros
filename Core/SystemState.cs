@@ -18,6 +18,7 @@ public sealed class Preferences
     public bool Scanlines { get; set; } = true;
     public bool Motion { get; set; } = true;
     public bool EdgeResize { get; set; } = true;
+    public bool CollidingWindows { get; set; }
     public bool Network { get; set; } = true;
     public string Wallpaper { get; set; } = "Petrol";
     public string WallpaperScene { get; set; } = "Classic";

@@ -8,7 +8,7 @@ namespace HammerOS.Desktop;
 
 public sealed class DesktopBackdrop : Control
 {
-    public static readonly string[] Scenes = ["Classic", "Earth", "Mountains", "Waves"];
+    public static readonly string[] Scenes = ["Classic", "Earth", "Mountains", "Waves", "Torus"];
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly Stopwatch _clock = new();
     private bool _attached;
@@ -32,7 +32,7 @@ public sealed class DesktopBackdrop : Control
     { if (_attached && _animate && Scene != "Classic") { _clock.Start(); _timer.Start(); } else { _timer.Stop(); _clock.Stop(); } }
     public override void Render(DrawingContext c)
     {
-        var bg = Palette == "Evergreen" ? "#1B3430" : Palette == "Midnight" ? "#152633" : "#16343B";
+        var bg = Palette == "Evergreen" ? "#1B3430" : Palette == "Midnight" ? "#152633" : Palette == "Graphite" ? "#1D2324" : "#16343B";
         c.FillRectangle(Brush.Parse(bg), Bounds);
         var dots = Brush.Parse("#194FC0B1");
         for (var x = 30; x < Bounds.Width; x += 52) for (var y = 28; y < Bounds.Height; y += 52) c.DrawEllipse(dots, null, new Point(x, y), .7, .7);
@@ -41,6 +41,7 @@ public sealed class DesktopBackdrop : Control
         {
             if (Scene == "Earth") Earth(c, time);
             else if (Scene is "Mountains" or "Waves") Terrain(c, time, Scene == "Mountains");
+            else if (Scene == "Torus") Torus(c, time);
             else Classic(c);
         }
         if (Scanlines) { var scan = new Pen(Brush.Parse("#07000000"), 1); for (var y = 0; y < Bounds.Height; y += 4) c.DrawLine(scan, new Point(0, y), new Point(Bounds.Width, y)); }
@@ -87,6 +88,25 @@ public sealed class DesktopBackdrop : Control
         [new(-54,60),new(-20,70),new(-27,83),new(-52,80),new(-54,60)],
         [new(47,-13),new(51,-16),new(47,-25),new(44,-23),new(47,-13)]
     ];
+    private void Torus(DrawingContext c, double time)
+    {
+        var size = Math.Min(Bounds.Width * .34, Bounds.Height * .40); var center = new Point(Bounds.Width * .68, Bounds.Height * .57);
+        var front = new Pen(Brush.Parse("#4779B6A8"), 1); var back = new Pen(Brush.Parse("#1379B6A8"), 1);
+        double spin = time * .09, tilt = 1.05 + .18 * Math.Sin(time * .05);
+        (Point Point, double Depth) Project(double u, double v)
+        {
+            // Spin around the ring's own axis, then tip it toward the viewer with a gentle sway.
+            var ring = 1 + .42 * Math.Cos(v); var x = ring * Math.Cos(u); var y = ring * Math.Sin(u); var z = .42 * Math.Sin(v);
+            var x1 = x * Math.Cos(spin) - y * Math.Sin(spin); var y1 = x * Math.Sin(spin) + y * Math.Cos(spin);
+            var y2 = y1 * Math.Cos(tilt) - z * Math.Sin(tilt); var z2 = y1 * Math.Sin(tilt) + z * Math.Cos(tilt);
+            var scale = size / 1.6 * 6 / (6 - z2);
+            return (new Point(center.X + x1 * scale, center.Y + y2 * scale), z2);
+        }
+        void Segment(double u1, double v1, double u2, double v2) { var a = Project(u1, v1); var b = Project(u2, v2); c.DrawLine(a.Depth + b.Depth > 0 ? front : back, a.Point, b.Point); }
+        const int rings = 14, meridians = 32, fine = 72, tube = 24;
+        for (var k = 0; k < rings; k++) { var v = 2 * Math.PI * k / rings; for (var s = 0; s < fine; s++) Segment(2 * Math.PI * s / fine, v, 2 * Math.PI * (s + 1) / fine, v); }
+        for (var k = 0; k < meridians; k++) { var u = 2 * Math.PI * k / meridians; for (var s = 0; s < tube; s++) Segment(u, 2 * Math.PI * s / tube, u, 2 * Math.PI * (s + 1) / tube); }
+    }
     private void Terrain(DrawingContext c, double time, bool mountains)
     {
         const int columns = 40, rows = 27; var points = new Point[rows + 1, columns + 1];

@@ -25,7 +25,7 @@ public sealed class DepartmentTerminalView : UserControl
         var grid = new Grid { RowDefinitions = new RowDefinitions("*,Auto,26") };
         _scroll = Ui.Scroll(_output); _scroll.Margin = new Thickness(20, 17, 20, 7); grid.Children.Add(_scroll);
         var command = Ui.Columns("Auto,*", _prompt, Input); command.Margin = new Thickness(18, 0, 16, 8); command.MinHeight = 42; Grid.SetRow(command, 1); grid.Children.Add(command);
-        var footer = new Border { Padding = new Thickness(20, 0), Background = Avalonia.Media.Brush.Parse("#193A40"), Child = Ui.Columns("*,Auto", Ui.Label("HSH  /  VIRTUAL SHELL", Ui.Muted), Ui.Label("HMR-04   ●", Ui.Phosphor)) }; Grid.SetRow(footer, 2); grid.Children.Add(footer);
+        var footer = new Border { Padding = new Thickness(20, 0), Background = Tint.Bar, Child = Ui.Columns("*,Auto", Ui.Label("HSH  /  VIRTUAL SHELL", Ui.Muted), Ui.Label("HMR-04   ●", Ui.Phosphor)) }; Grid.SetRow(footer, 2); grid.Children.Add(footer);
         Content = grid; Prompt();
         Input.KeyDown += (_, e) =>
         {

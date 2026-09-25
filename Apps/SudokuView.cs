@@ -50,11 +50,11 @@ public sealed class SudokuView : UserControl, IDisposable
         for (var i = 0; i < 81; i++)
         {
             var value = Game.Cells[i]; var selected = i == _selected; var peer = SudokuGame.Peers(_selected).Contains(i);
-            _cells[i].Background = Brush.Parse(selected ? "#39625E" : Game.Conflict(i) ? "#633F3C" : peer ? "#1D3C41" : "#102C32");
+            _cells[i].Background = selected ? Tint.DarkHover : Game.Conflict(i) ? Brush.Parse("#633F3C") : peer ? Tint.Bar : Tint.Dark;
             if (value > 0) _cells[i].Content = Ui.Text(value.ToString(), 24, Game.Givens[i] > 0 ? Brush.Parse("#DBEADD") : Ui.Phosphor, true);
             else { var notes = Enumerable.Range(1, 9).Select(n => (Game.Notes[i] & 1 << n) != 0 ? n.ToString() : " ").ToArray(); _cells[i].Content = Ui.Text(string.Join('\n', Enumerable.Range(0, 3).Select(r => string.Join(' ', notes.Skip(r * 3).Take(3)))), 9, Ui.Muted, true); }
         }
-        _pencil.Content = _notes ? "Notes: on" : "Notes: off"; _pencil.Background = _notes ? Brush.Parse("#31534E") : Brushes.Transparent;
+        _pencil.Content = _notes ? "Notes: on" : "Notes: off"; _pencil.Background = _notes ? Tint.DarkHover : Brushes.Transparent;
         _progress.Text = $"{Game.Cells.Count(x => x > 0):00} / 81"; _status.Text = Game.Solved ? "Puzzle complete. Well played." : Enumerable.Range(0, 81).Any(Game.Conflict) ? "Check highlighted conflicts." : "1–9 enter  ·  N notes";
     }
     public void Dispose() => _state.Changed -= Refresh;

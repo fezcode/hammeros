@@ -10,7 +10,8 @@ namespace HammerOS.Desktop;
 
 public static class Ui
 {
-    public static readonly IBrush Ink = Brush.Parse("#173B40"), Cream = Brush.Parse("#ECEDE0"), Muted = Brush.Parse("#688178"), Line = Brush.Parse("#BCC8BB"), Phosphor = Brush.Parse("#B3E5DA"), Dark = Brush.Parse("#102C32");
+    public static readonly IBrush Ink = Brush.Parse("#173B40"), Cream = Brush.Parse("#ECEDE0"), Muted = Brush.Parse("#688178"), Line = Brush.Parse("#BCC8BB"), Phosphor = Brush.Parse("#B3E5DA");
+    public static IBrush Dark => Tint.Dark;
     public static readonly FontFamily Mono = new("Cascadia Mono, Consolas"), Serif = new("Georgia, Times New Roman");
     public static TextBlock Text(string text, double size = 13, IBrush? color = null, bool mono = false) => new() { Text = text, FontSize = size, Foreground = color ?? Ink, FontFamily = mono ? Mono : FontFamily.Default, VerticalAlignment = VerticalAlignment.Center };
     public static TextBlock Label(string text, IBrush? color = null) => new() { Text = text, FontSize = 10.5, LetterSpacing = 1.2, Foreground = color ?? Muted, FontFamily = Mono, VerticalAlignment = VerticalAlignment.Center };

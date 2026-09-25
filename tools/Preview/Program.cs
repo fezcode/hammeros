@@ -13,6 +13,8 @@ using Avalonia.Input;
 AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false }).WithInterFont().SetupWithoutStarting();
 var output = Path.GetFullPath(args.FirstOrDefault() ?? "dist/preview"); Directory.CreateDirectory(output);
 var state = new SystemState(persistent: false); state.Preferences.Motion = false;
+// --palette <Name> renders the same set in another desktop palette.
+if (Array.IndexOf(args, "--palette") is var paletteArg and >= 0 && paletteArg + 1 < args.Length) state.Preferences.Wallpaper = args[paletteArg + 1];
 var shell = new ShellWindow(state, true); shell.Show(); Pump(); shell.StartDesktop(); Pump();
 Save("desktop");
 if (args.Contains("--wallpapers"))

@@ -8,7 +8,7 @@ namespace HammerOS;
 
 public class App : Application
 {
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize() { AvaloniaXamlLoader.Load(this); Tint.Register(Resources); }
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

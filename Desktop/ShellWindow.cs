@@ -33,7 +33,7 @@ public sealed class ShellWindow : Window
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private Border? _launcher, _lock, _toast;
     private int _z;
-    private bool _started;
+    private bool _started, _collisions;
     private CommandPalette? _spotlight;
     private IReadOnlyList<WindowsApplication> _windowsApps = [];
     private Task<IReadOnlyList<WindowsApplication>>? _windowsAppsLoading;
@@ -73,7 +73,7 @@ public sealed class ShellWindow : Window
             var app = AppCatalog.All.First(x => x.Id == id);
             var glyph = new Glyph(app.Symbol) { Width = 25, Height = 25, Color = Brush.Parse("#CFDCC4"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             var label = Ui.Text(id == "refinement" ? "Refinement" : id == "control" ? "Control Panel" : app.Name, 11, Brush.Parse("#BDCEBA")); label.HorizontalAlignment = HorizontalAlignment.Center;
-            var tile = new Border { Width = 48, Height = 44, BorderBrush = Brush.Parse("#506D61"), BorderThickness = new Thickness(1), Background = Brush.Parse("#213F43"), CornerRadius = new CornerRadius(3), Child = glyph, HorizontalAlignment = HorizontalAlignment.Center };
+            var tile = new Border { Width = 48, Height = 44, BorderBrush = Brush.Parse("#506D61"), BorderThickness = new Thickness(1), Background = Tint.DarkRaised, CornerRadius = new CornerRadius(3), Child = glyph, HorizontalAlignment = HorizontalAlignment.Center };
             var icon = Ui.Button("", () => OpenApp(id), "dark"); icon.Content = Ui.Stack(9, tile, label); icon.Width = 106; icon.Height = 86;
             ToolTip.SetTip(icon, app.Description); var hover = new TranslateTransform(); glyph.RenderTransform = hover;
             Action? cancelHover = null;
@@ -93,7 +93,7 @@ public sealed class ShellWindow : Window
         State.Changed += ApplyPreferences; ApplyPreferences();
         PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) UpdateWallpaper(); };
         Opened += (_, _) => Dispatcher.UIThread.Post(StartDesktop, DispatcherPriority.Loaded);
-        Workspace.SizeChanged += (_, e) => { netButton.IsVisible = e.NewSize.Width >= 1250; profile.IsVisible = e.NewSize.Width >= 1100; bgCopy.IsVisible = e.NewSize.Width >= 1150; foreach (var frame in Frames) frame.Constrain(); };
+        Workspace.SizeChanged += (_, e) => { netButton.IsVisible = e.NewSize.Width >= 1250; profile.IsVisible = e.NewSize.Width >= 1100; bgCopy.IsVisible = e.NewSize.Width >= 1150; foreach (var frame in Frames) frame.Constrain(); ResolveOverlaps(); };
         AddHandler(KeyDownEvent, OnGlobalKey, RoutingStrategies.Tunnel);
         AddHandler(PointerPressedEvent, (_, e) => { if (_launcher is not null && e.Source is Visual source) { var ancestors = source.GetSelfAndVisualAncestors().ToArray(); if (!ancestors.Contains(_launcher) && !ancestors.OfType<Control>().Any(x => x.Classes.Contains("launcher-toggle"))) CloseLauncher(); } }, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => { CloseLauncher(); CloseSpotlight(); };
@@ -112,6 +112,9 @@ public sealed class ShellWindow : Window
     {
         Motion.Enabled = State.Preferences.Motion;
         foreach (var frame in Frames) frame.UpdateResizeHandles();
+        if (_collisions != Collisions) { _collisions = Collisions; if (Collisions) ResolveOverlaps(); else foreach (var frame in Frames.Where(x => x.IsMaximized && x.IsSolid)) frame.Constrain(); }
+        // Palette brushes recolor in place; custom-drawn views only pick them up on their next render.
+        if (Tint.Apply(State.Preferences.Wallpaper)) foreach (var control in this.GetVisualDescendants().OfType<Control>()) control.InvalidateVisual();
         _backdrop.Palette = State.Preferences.Wallpaper; _backdrop.Scanlines = State.Preferences.Scanlines; _backdrop.InvalidateVisual();
         UpdateWallpaper();
         _employee.Text = $"{State.Preferences.Employee}  /  HMR";
@@ -141,10 +144,44 @@ public sealed class ShellWindow : Window
         double x = id == "refinement" ? 156 : id == "terminal" && Frames.Count == 2 ? Workspace.Bounds.Width - frame.Width - 32 : (Workspace.Bounds.Width - frame.Width) / 2 + (Frames.Count % 3) * 15;
         double y = id == "refinement" ? 52 : id == "terminal" && Frames.Count == 2 ? Workspace.Bounds.Height - frame.Height - 40 : 75 + (Frames.Count % 4) * 24;
         if (instance > 1) { x += ((instance - 1) % 6) * 28; y += ((instance - 1) % 6) * 28; }
-        frame.SetPosition(x, y); FocusFrame(frame); Motion.Enter(frame, 22); UpdateTaskbar(); State.Record($"Opened {app.Name}");
+        frame.SetPosition(x, y); Settle(frame); FocusFrame(frame); Motion.Enter(frame, 22); UpdateTaskbar(); State.Record($"Opened {app.Name}");
+    }
+    // Colliding windows: frames are solid and never overlap. Maximized frames are elastic: they
+    // fill the largest free area, grow when a neighbour is minimized or closed, and give way
+    // when a window opens or is restored.
+    public bool Collisions => State.Preferences.CollidingWindows;
+    private static readonly Size PlacedMinimum = new(320, 220), MaximizedMinimum = new(200, 140);
+    private Rect WorkspaceRect => new(Workspace.Bounds.Size);
+    public IReadOnlyList<Rect> Obstacles(AppFrame except, bool maximized = true) => Frames.Where(x => x != except && x.IsSolid && (maximized || !x.IsMaximized)).Select(x => x.Footprint).ToArray();
+    public Rect MaximumArea(AppFrame frame) => WindowCollisions.LargestFree(WorkspaceRect, Obstacles(frame), frame.Footprint, MaximizedMinimum) ?? frame.Footprint;
+    public Rect Clearing(AppFrame frame, Rect desired) => WindowCollisions.Place(WorkspaceRect, desired, Obstacles(frame), PlacedMinimum) ?? desired;
+    public void Settle(AppFrame frame)
+    {
+        if (!Collisions || !frame.IsSolid) return;
+        if (WindowCollisions.Place(WorkspaceRect, frame.Footprint, Obstacles(frame, maximized: false), PlacedMinimum) is { } spot) frame.FitTo(spot, false);
+        Reflow(frame);
+    }
+    public void Reflow(AppFrame? settled = null)
+    {
+        if (!Collisions) return;
+        for (var pass = 0; pass < 2; pass++)
+            foreach (var frame in Frames.Where(x => x != settled && x.IsMaximized && x.IsSolid).OrderBy(x => x.MaximizedAt).ToArray())
+                if (WindowCollisions.LargestFree(WorkspaceRect, Obstacles(frame), frame.Footprint, MaximizedMinimum) is { } area) frame.FitTo(area);
+    }
+    // Pulls overlapping windows apart, keeping the frontmost ones where they are.
+    public void ResolveOverlaps()
+    {
+        if (!Collisions) return;
+        var placed = new List<Rect>();
+        foreach (var frame in Frames.Where(x => x.IsSolid && !x.IsMaximized).OrderByDescending(x => x.ZIndex))
+        {
+            if (!WindowCollisions.IsFree(frame.Footprint, placed) && WindowCollisions.Place(WorkspaceRect, frame.Footprint, placed, PlacedMinimum) is { } spot) frame.FitTo(spot);
+            placed.Add(frame.Footprint);
+        }
+        Reflow();
     }
     public void FocusFrame(AppFrame active) { _active = active; active.ZIndex = ++_z; foreach (var frame in Frames) frame.SetActive(frame == active); UpdateTaskbar(); SyncHostedWindows(); }
-    public void RemoveFrame(AppFrame frame) { (frame.AppContent as IDisposable)?.Dispose(); Frames.Remove(frame); Workspace.Children.Remove(frame); if (Frames.LastOrDefault(x => !x.IsMinimized) is { } next) FocusFrame(next); UpdateTaskbar(); }
+    public void RemoveFrame(AppFrame frame) { (frame.AppContent as IDisposable)?.Dispose(); Frames.Remove(frame); Workspace.Children.Remove(frame); if (Frames.LastOrDefault(x => !x.IsMinimized) is { } next) FocusFrame(next); UpdateTaskbar(); Reflow(); }
     public void UpdateTaskbar()
     {
         _tasks.Children.Clear();
@@ -157,8 +194,8 @@ public sealed class ShellWindow : Window
             else if (frame.AppContent is EditorView editor) FileDrop.Attach(b, paths => paths.Length == 1 && File.Exists(paths[0]), paths => { frame.Restore(); editor.OpenDroppedFile(paths[0]); });
             else if (frame.AppContent is FilesView files) FileDrop.Attach(b, paths => paths.Length > 0, paths => { frame.Restore(); files.Select(true); files.Local.CopyDroppedFiles(paths, files.Local.CurrentDirectory); });
             b.Content = Ui.Row(8, new Glyph(app.Symbol) { Width = 16, Height = 16 }, Ui.Text(frame.DisplayName.Replace("Refinement", "Refinement"), 11));
-            b.BorderThickness = new Thickness(0, 0, 0, 2); b.BorderBrush = frame.IsMinimized ? Brushes.Transparent : Brush.Parse("#54796A");
-            b.Background = frame == _active && !frame.IsMinimized ? Brush.Parse("#D4DECE") : Brushes.Transparent;
+            b.BorderThickness = new Thickness(0, 0, 0, 2); b.BorderBrush = frame.IsMinimized ? Brushes.Transparent : Tint.Accent;
+            b.Background = frame == _active && !frame.IsMinimized ? Tint.AccentSoft : Brushes.Transparent;
             if (Frames.Count > 5) b.Content = new Glyph(app.Symbol) { Width = 16, Height = 16 }; ToolTip.SetTip(b, frame.DisplayName);
             _tasks.Children.Add(b);
         }
@@ -299,7 +336,7 @@ public sealed class ShellWindow : Window
         for (var i = 0; i < list.Length; i++) list[i].ArrangeTo(new Rect(i % cols * w + 5, i / cols * h + 5, Math.Max(100, w - 10), Math.Max(100, h - 10)));
     }
     public void CascadeWindows()
-    { var i = 0; foreach (var frame in Frames) { frame.ArrangeTo(new Rect(100 + i * 28, 25 + i * 25, Math.Min(820, Workspace.Bounds.Width - 140), Math.Min(570, Workspace.Bounds.Height - 60))); i = (i + 1) % 6; } }
+    { if (Collisions) { TileWindows(); return; } var i = 0; foreach (var frame in Frames) { frame.ArrangeTo(new Rect(100 + i * 28, 25 + i * 25, Math.Min(820, Workspace.Bounds.Width - 140), Math.Min(570, Workspace.Bounds.Height - 60))); i = (i + 1) % 6; } }
     private void SyncHostedWindows()
     { UpdateWallpaper(); foreach (var frame in Frames) if (frame.AppContent is INativeWorkspace native) native.SetWorkspaceActive(frame == _active && !frame.IsMinimized && !IsLocked && _launcher is null && _spotlight is null && !_overlayOpen && !_taskbarMenuOpen); }
     private void UpdateWallpaper() => _backdrop.Configure(State.Preferences.WallpaperScene, State.Preferences.Motion && State.Preferences.WallpaperAnimation && !IsLocked && WindowState != WindowState.Minimized);
@@ -335,6 +372,7 @@ public sealed class ShellWindow : Window
             Add("Toggle smooth motion", "Switch animations " + (State.Preferences.Motion ? "off" : "on"), "settings", () => { State.Preferences.Motion = !State.Preferences.Motion; State.Save(); });
             Add("Toggle CRT texture", "Switch the desktop scanline texture", "settings", () => { State.Preferences.Scanlines = !State.Preferences.Scanlines; State.Save(); });
             Add("Toggle edge resizing", "Switch window edge resize handles", "settings", () => { State.Preferences.EdgeResize = !State.Preferences.EdgeResize; State.Save(); });
+            Add("Toggle colliding windows", "Keep windows from overlapping · " + (Collisions ? "on" : "off"), "settings", () => { State.Preferences.CollidingWindows = !State.Preferences.CollidingWindows; State.Save(); });
             Add("Show desktop", "Minimize or restore all windows", "minimize", ShowDesktop);
             Add("Tile windows", "Arrange HammerOS windows in a grid", "refinement", TileWindows);
             Add("Cascade windows", "Stack HammerOS windows", "maximize", CascadeWindows);

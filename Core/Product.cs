@@ -9,7 +9,7 @@ namespace HammerOS.Core;
 public static class Product
 {
     public const string Name = "HammerOS";
-    public const string Version = "0.3.4";
+    public const string Version = "0.3.5";
 
     /// <summary>"HammerOS 1.2.3" — what the CLI, shell and seeded files print.</summary>
     public static string NameAndVersion => $"{Name} {Version}";

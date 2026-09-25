@@ -22,14 +22,16 @@ public sealed class SettingsView : UserControl, IDisposable
         {
             var toggle = new ToggleSwitch { IsChecked = value, OnContent = "", OffContent = "", VerticalAlignment = VerticalAlignment.Center };
             toggle.IsCheckedChanged += (_, _) => { update(toggle.IsChecked == true); state.Save(); };
-            stack.Children.Add(Ui.Columns("*,Auto", Ui.Stack(5, Ui.Text(title, 14), Ui.Text(description, 11, Ui.Muted)), toggle));
+            var text = Ui.Text(description, 11, Ui.Muted); text.TextWrapping = TextWrapping.Wrap; text.Margin = new Thickness(0, 0, 18, 0);
+            stack.Children.Add(Ui.Columns("*,Auto", Ui.Stack(5, Ui.Text(title, 14), text), toggle));
         }
         Toggle("Smooth motion", "Eased windows, responsive interactions, and drifting numbers.", state.Preferences.Motion, x => state.Preferences.Motion = x);
         Toggle("Resize from all edges", "Drag any window edge or corner. Turn off to use the corner grip only.", state.Preferences.EdgeResize, x => state.Preferences.EdgeResize = x);
+        Toggle("Colliding windows", "Windows never overlap. Maximize fills only the free space; a minimized window gives up its room.", state.Preferences.CollidingWindows, x => state.Preferences.CollidingWindows = x);
         Toggle("Phosphor texture", "Subtle scanlines across your desktop and refinement display.", state.Preferences.Scanlines, x => state.Preferences.Scanlines = x);
         stack.Children.Add(Ui.Rule()); stack.Children.Add(Ui.Label("DESKTOP PALETTE"));
         var themes = Ui.Row(12);
-        foreach (var (name, hex) in new[] { ("Petrol", "#1A3D43"), ("Evergreen", "#1D3935"), ("Midnight", "#172B3C") })
+        foreach (var (name, hex) in new[] { ("Petrol", "#1A3D43"), ("Evergreen", "#1D3935"), ("Midnight", "#172B3C"), ("Graphite", "#222829") })
         {
             var swatch = new Border { Width = 127, Height = 48, Background = Brush.Parse(hex), Child = Ui.Label("H", Ui.Phosphor), Padding = new Thickness(14) };
             var b = Ui.Button("", () => { state.Preferences.Wallpaper = name; state.Save(); toast(name + " palette applied."); }, "outline"); b.Content = Ui.Stack(9, swatch, Ui.Text(name, 11)); b.Padding = new Thickness(7); themes.Children.Add(b);
@@ -157,7 +159,7 @@ public sealed class HandbookView : UserControl
     {
         var stack = Ui.Stack(22, Ui.Heading("HAMMER INDUSTRIES  /  REV. 01", "The employee handbook.", "An informed employee is a content employee."), Ui.Rule());
         foreach (var (title, body) in new[] {
-            ("01   Your workstation", "Open applications from the desktop or the Applications directory. Each launch opens a new window. The Window menu and numbered taskbar entries select existing windows. Drag a title to move; drag any edge or corner to resize. Settings can disable edge resizing. Click outside the application directory to dismiss it."),
+            ("01   Your workstation", "Open applications from the desktop or the Applications directory. Each launch opens a new window. The Window menu and numbered taskbar entries select existing windows. Drag a title to move; drag any edge or corner to resize. Settings can disable edge resizing. With Colliding windows on, windows cannot overlap: they stop against each other, maximize fills only the free space, and minimizing or closing a window hands its room to maximized neighbours. Click outside the application directory to dismiss it."),
             ("02   The work", "In Refinement, click a number to select the surrounding group. Assign the group to a bin below. Each collected number advances that bin by one percent. Fill all five bins to complete Aster. Use the arrow keys and Space to select with the keyboard; Escape clears the selection."),
             ("03   Your records", "File Explorer opens This PC: your real drives, folders, and files. Open files in their default Windows app, edit small UTF-8 text files, create, rename, copy, move, or recycle items. Save text edits before leaving the editor. Actions > Terminal here opens a shell in that folder. Department / H: and the Department terminal share a separate virtual drive. Memoranda saves to /personal/notes.txt when you press Save."),
             ("04   Your real terminal", "Select PowerShell inside Terminal to open a real, unelevated Windows shell. Its commands operate on your actual computer. Arrow keys, Tab completion, Ctrl+C, ANSI colors, Unicode, and scrollback are supported. Drag to select; Ctrl+Shift+C copies and Ctrl+Shift+V pastes. Ctrl+L clears PowerShell instead of locking HammerOS. Use the header lock button while working in PowerShell. Closing the terminal or ending HammerOS stops its shell and child processes."),

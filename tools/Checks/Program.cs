@@ -18,6 +18,17 @@ void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickE
 Button ButtonWith(Control root, string text) => root.GetVisualDescendants().OfType<Button>().First(x => x.Content is string s && s == text);
 var state = new SystemState(persistent: false); state.Preferences.Motion = false;
 var terminal = new TerminalSession(state);
+Check("Collision geometry slides, limits resizes, and finds free space", () => {
+    var wall = new[] { new Rect(150, 0, 100, 100) };
+    Require(WindowCollisions.Slide(new Rect(0, 0, 100, 100), new Point(200, 0), wall) == new Point(50, 0), "Slide passed through an obstacle");
+    Require(WindowCollisions.Slide(new Rect(0, 0, 100, 100), new Point(200, 200), wall) == new Point(50, 200), "Slide did not continue along the free axis");
+    Require(WindowCollisions.Slide(new Rect(160, 0, 100, 100), new Point(400, 0), wall) == new Point(400, 0), "An overlapping window could not escape");
+    Require(WindowCollisions.Resize(new Rect(0, 0, 100, 100), new Rect(0, 0, 300, 300), wall) == new Rect(0, 0, 150, 300), "Resize crossed an obstacle");
+    Require(WindowCollisions.LargestFree(new Rect(0, 0, 1000, 600), [new Rect(0, 0, 400, 600)], new Rect(500, 0, 10, 10), new Size(1, 1)) == new Rect(400, 0, 600, 600));
+    Require(WindowCollisions.Place(new Rect(0, 0, 1000, 600), new Rect(100, 100, 300, 300), [new Rect(0, 0, 500, 600)], new Size(100, 100)) == new Rect(500, 100, 300, 300), "Placement did not find the nearest free spot");
+    Require(WindowCollisions.Place(new Rect(0, 0, 1000, 600), new Rect(0, 0, 900, 600), [new Rect(0, 0, 500, 600)], new Size(100, 100)) == new Rect(500, 0, 500, 600), "Placement did not shrink into the free area");
+    Require(WindowCollisions.Place(new Rect(0, 0, 1000, 600), new Rect(0, 0, 300, 300), [new Rect(0, 0, 950, 600)], new Size(100, 100)) is null);
+});
 Check("Virtual paths stay rooted", () => Require(SystemState.Normalize("../../../../system", "/personal") == "/system"));
 Check("Terminal quoted filenames and file contents round trip", () => { Require(terminal.Execute("write \"report one.txt\" \"The work continues\"") == "Saved."); Require(terminal.Execute("cat 'report one.txt'") == "The work continues"); });
 Check("Terminal filesystem is shared with applications", () => Require(state.Find("/department/report one.txt")?.Content == "The work continues"));
@@ -250,6 +261,34 @@ Check("Rapid animated open, minimize, restore, and close settle cleanly", () => 
     Require(frame.IsMinimized && !frame.IsVisible); frame.Restore(); frame.Close();
     WaitFor(() => !shell.Frames.Contains(frame));
     Require(!shell.Frames.Contains(frame), $"Close did not settle: minimized={frame.IsMinimized}, visible={frame.IsVisible}, opacity={frame.Opacity}, busy={typeof(AppFrame).GetField("_busy", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(frame)}"); Motion.Enabled = false;
+});
+Check("Desktop palette tints window chrome and dark screens live", () => {
+    var refinement = (RefinementView)shell.Frames.First(x => x.AppId == "refinement").AppContent; var frame = shell.Frames.Single(x => x.AppId == "terminal"); shell.FocusFrame(frame); Pump();
+    state.Preferences.Wallpaper = "Graphite"; state.Save(); Pump();
+    Require(refinement.Background == Tint.Dark && Tint.Dark.Color == Avalonia.Media.Color.Parse("#15191A"), "Dark screens did not follow the palette");
+    Require(frame.BorderBrush == Tint.BorderActive && Tint.BorderActive.Color == Avalonia.Media.Color.Parse("#C0C3BD") && Tint.TitleActive.Color == Avalonia.Media.Color.Parse("#E8E8E1"), "Window chrome did not follow the palette");
+    state.Preferences.Wallpaper = "Petrol"; state.Save(); Pump(); Require(Tint.Dark.Color == Avalonia.Media.Color.Parse("#102C32"));
+});
+Check("Colliding windows stop flush, maximize into free space, and reclaim minimized room", () => {
+    state.Preferences.CollidingWindows = true; state.Save(); Pump();
+    foreach (var other in shell.Frames) other.Minimize(); Pump();
+    var a = shell.Frames.Single(x => x.AppId == "terminal"); var b = shell.Frames.Single(x => x.AppId == "settings");
+    a.Restore(); b.Restore(); a.ArrangeTo(new Rect(0, 0, 440, 300)); b.ArrangeTo(new Rect(540, 0, 300, 300)); shell.FocusFrame(a); Pump();
+    var label = a.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == "TERMINAL"); var point = label.TranslatePoint(new Point(20, 7), shell)!.Value;
+    shell.MouseDown(point, MouseButton.Left); shell.MouseMove(point + new Vector(300, 0)); shell.MouseUp(point + new Vector(300, 0), MouseButton.Left); Pump();
+    Require(Math.Abs(Canvas.GetLeft(a) - 100) < 1, $"Drag did not stop against the neighbour: {Canvas.GetLeft(a)}");
+    a.ArrangeTo(new Rect(0, 0, 440, 300)); Pump(); var handle = a.GetVisualDescendants().OfType<Border>().Single(x => x.Name == "ResizeRight");
+    point = handle.TranslatePoint(new Point(handle.Bounds.Width / 2, handle.Bounds.Height / 2), shell)!.Value;
+    shell.MouseDown(point, MouseButton.Left); shell.MouseMove(point + new Vector(250, 0)); shell.MouseUp(point + new Vector(250, 0), MouseButton.Left); Pump();
+    Require(Math.Abs(a.Width - 540) < 1, $"Resize did not stop against the neighbour: {a.Width}");
+    var workspace = shell.Workspace.Bounds;
+    a.ToggleMaximize(); Pump(); Require(a.IsMaximized && !WindowCollisions.Overlaps(a.Footprint, b.Footprint) && Math.Abs(a.Height - shell.Workspace.Bounds.Height) < 1, $"Maximize ignored the neighbour: {a.Footprint}");
+    b.Minimize(); Pump(); Require(Math.Abs(a.Width - workspace.Width) < 1 && Math.Abs(a.Height - workspace.Height) < 1, $"Maximized window did not take the minimized window's room: {a.Footprint}");
+    b.Restore(); Pump(); Require(b.Footprint == new Rect(540, 0, 300, 300) && !WindowCollisions.Overlaps(a.Footprint, b.Footprint), $"Restore did not reclaim its room: {a.Footprint} / {b.Footprint}");
+    a.ToggleMaximize(); Pump(); Require(!a.IsMaximized && !WindowCollisions.Overlaps(a.Footprint, b.Footprint));
+    b.ArrangeTo(new Rect(200, 100, 300, 300)); Pump(); state.Preferences.CollidingWindows = false; state.Save(); state.Preferences.CollidingWindows = true; state.Save(); Pump();
+    Require(!WindowCollisions.Overlaps(a.Footprint, b.Footprint), "Enabling collisions left windows overlapping");
+    state.Preferences.CollidingWindows = false; state.Save(); foreach (var other in shell.Frames) other.Restore(); Pump();
 });
 shell.Close();
 Console.WriteLine($"\n{passed} checks passed.");

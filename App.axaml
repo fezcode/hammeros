@@ -30,23 +30,23 @@
     </Style>
     <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#D4DED6"/><Setter Property="Foreground" Value="#123A3F"/></Style>
     <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#B6CCC3"/></Style>
-    <Style Selector="Button.primary"><Setter Property="Background" Value="#214B4D"/><Setter Property="Foreground" Value="#F0F0DF"/><Setter Property="Padding" Value="18,11"/></Style>
+    <Style Selector="Button.primary"><Setter Property="Background" Value="{DynamicResource Hmr.Primary}"/><Setter Property="Foreground" Value="#F0F0DF"/><Setter Property="Padding" Value="18,11"/></Style>
     <Style Selector="Button.outline"><Setter Property="BorderBrush" Value="#AABBB2"/><Setter Property="BorderThickness" Value="1"/></Style>
     <Style Selector="Button.dark"><Setter Property="Foreground" Value="#9FCAC7"/></Style>
-    <Style Selector="Button.dark:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#24494D"/><Setter Property="Foreground" Value="#C5F6ED"/></Style>
+    <Style Selector="Button.dark:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource Hmr.DarkRaised}"/><Setter Property="Foreground" Value="#C5F6ED"/></Style>
     <Style Selector="TextBox"><Setter Property="CornerRadius" Value="0"/><Setter Property="Background" Value="#F5F3E8"/><Setter Property="BorderBrush" Value="#AFBEB5"/><Setter Property="Foreground" Value="#183C40"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="10,8"/></Style>
-    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement"><Setter Property="BorderBrush" Value="#406E65"/><Setter Property="BorderThickness" Value="1"/></Style>
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement"><Setter Property="BorderBrush" Value="{DynamicResource Hmr.Accent}"/><Setter Property="BorderThickness" Value="1"/></Style>
     <Style Selector="TextBox"><Setter Property="MinHeight" Value="36"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
     <Style Selector="TextBox"><Setter Property="desktop:TextMenus.Enabled" Value="True"/></Style>
     <Style Selector="TextBox.search"><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="8,5"/></Style>
     <Style Selector="TextBox.search:focus /template/ Border#PART_BorderElement"><Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="Transparent"/></Style>
-    <Style Selector="TextBox.terminal"><Setter Property="FontFamily" Value="Cascadia Mono, Consolas"/><Setter Property="Foreground" Value="#AFE2D8"/><Setter Property="CaretBrush" Value="#AFE2D8"/><Setter Property="Background" Value="#102E34"/><Setter Property="BorderThickness" Value="0"/></Style>
-    <Style Selector="TextBox.terminal:focus /template/ Border#PART_BorderElement"><Setter Property="Background" Value="#102E34"/><Setter Property="BorderThickness" Value="0"/></Style>
-    <Style Selector="TextBox.document"><Setter Property="Background" Value="#102C32"/><Setter Property="Foreground" Value="#B3E5DA"/><Setter Property="CaretBrush" Value="#B3E5DA"/><Setter Property="SelectionBrush" Value="#416C65"/><Setter Property="SelectionForegroundBrush" Value="#F0F0DF"/></Style>
-    <Style Selector="TextBox.document /template/ Border#PART_BorderElement, TextBox.document:pointerover /template/ Border#PART_BorderElement, TextBox.document:focus /template/ Border#PART_BorderElement"><Setter Property="Background" Value="#102C32"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="0"/></Style>
+    <Style Selector="TextBox.terminal"><Setter Property="FontFamily" Value="Cascadia Mono, Consolas"/><Setter Property="Foreground" Value="#AFE2D8"/><Setter Property="CaretBrush" Value="#AFE2D8"/><Setter Property="Background" Value="{DynamicResource Hmr.Dark}"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="TextBox.terminal:focus /template/ Border#PART_BorderElement"><Setter Property="Background" Value="{DynamicResource Hmr.Dark}"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="TextBox.document"><Setter Property="Background" Value="{DynamicResource Hmr.Dark}"/><Setter Property="Foreground" Value="#B3E5DA"/><Setter Property="CaretBrush" Value="#B3E5DA"/><Setter Property="SelectionBrush" Value="#416C65"/><Setter Property="SelectionForegroundBrush" Value="#F0F0DF"/></Style>
+    <Style Selector="TextBox.document /template/ Border#PART_BorderElement, TextBox.document:pointerover /template/ Border#PART_BorderElement, TextBox.document:focus /template/ Border#PART_BorderElement"><Setter Property="Background" Value="{DynamicResource Hmr.Dark}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="0"/></Style>
     <Style Selector="TextBox.document /template/ ScrollViewer"><Setter Property="HorizontalScrollBarVisibility" Value="Auto"/><Setter Property="VerticalScrollBarVisibility" Value="Auto"/></Style>
     <Style Selector="ToggleSwitch"><Setter Property="OnContent" Value="Enabled"/><Setter Property="OffContent" Value="Disabled"/></Style>
-    <Style Selector="ToolTip"><Setter Property="Background" Value="#193C40"/><Setter Property="Foreground" Value="#F0F0DF"/><Setter Property="CornerRadius" Value="0"/></Style>
+    <Style Selector="ToolTip"><Setter Property="Background" Value="{DynamicResource Hmr.Bar}"/><Setter Property="Foreground" Value="#F0F0DF"/><Setter Property="CornerRadius" Value="0"/></Style>
     <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="12,2"/><Setter Property="CornerRadius" Value="0"/></Style>
     <Style Selector="Button.file-drop /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#9ABDAA"/></Style>
     <Style Selector="ListBox.file-drop"><Setter Property="Background" Value="#DAE5D6"/></Style>
@@ -57,16 +57,16 @@
     <Style Selector="ContextMenu Separator"><Setter Property="Background" Value="#BCC8BB"/><Setter Property="Height" Value="1"/><Setter Property="Margin" Value="10,6"/></Style>
     <Style Selector="MenuItem.menu-section"><Setter Property="Padding" Value="12,8,12,6"/><Setter Property="MinHeight" Value="0"/></Style>
     <Style Selector="MenuItem.menu-section:disabled"><Setter Property="Opacity" Value="1"/></Style>
-    <Style Selector="Button.terminal-action.menu-open"><Setter Property="Background" Value="#2A4B50"/></Style>
-    <Style Selector="Button.terminal-action:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#365A5C"/></Style>
+    <Style Selector="Button.terminal-action.menu-open"><Setter Property="Background" Value="{DynamicResource Hmr.DarkRaised}"/></Style>
+    <Style Selector="Button.terminal-action:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource Hmr.DarkHover}"/></Style>
     <Style Selector="Button.terminal-action:pressed /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#47726D"/></Style>
     <Style Selector="Button.terminal-close /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="CornerRadius" Value="2"/></Style>
     <Style Selector="Border.terminal-tab"><Setter Property="Background" Value="Transparent"/><Setter Property="Transitions"><Transitions><BrushTransition Property="Background" Duration="0:0:0.14"/></Transitions></Setter></Style>
-    <Style Selector="Border.terminal-tab.selected"><Setter Property="Background" Value="#24464A"/></Style>
-    <Style Selector="Border.terminal-tab:pointerover"><Setter Property="Background" Value="#31575B"/></Style>
+    <Style Selector="Border.terminal-tab.selected"><Setter Property="Background" Value="{DynamicResource Hmr.DarkRaised}"/></Style>
+    <Style Selector="Border.terminal-tab:pointerover"><Setter Property="Background" Value="{DynamicResource Hmr.DarkHover}"/></Style>
     <Style Selector="Button.terminal-tab-button /template/ ContentPresenter#PART_ContentPresenter, Button.terminal-tab-button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.terminal-tab-button:pressed /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
     <Style Selector="FlyoutPresenter.calendar-popup"><Setter Property="Background" Value="#ECEDE0"/><Setter Property="BorderBrush" Value="#A7BBAE"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="0"/></Style>
-    <Style Selector="Button.calendar-selected:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="#31594F"/></Style>
+    <Style Selector="Button.calendar-selected:pointerover /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Background" Value="{DynamicResource Hmr.DarkHover}"/></Style>
     <Style Selector="ComboBox"><Setter Property="Background" Value="#F5F3E8"/><Setter Property="Foreground" Value="#183C40"/><Setter Property="BorderBrush" Value="#AFBEB5"/><Setter Property="CornerRadius" Value="0"/></Style>
     <Style Selector="ComboBox /template/ Popup#PART_Popup > Border"><Setter Property="Background" Value="#ECEDE0"/><Setter Property="BorderBrush" Value="#A7BBAE"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="4"/></Style>
     <Style Selector="ComboBoxItem"><Setter Property="FontFamily" Value="Inter, Segoe UI"/><Setter Property="FontSize" Value="12"/><Setter Property="MinHeight" Value="34"/><Setter Property="Padding" Value="10,7"/><Setter Property="Foreground" Value="#173B40"/></Style>
