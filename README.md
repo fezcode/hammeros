@@ -180,3 +180,7 @@ ConPTY integration follows Microsoft's [pseudoconsole lifecycle](https://learn.m
 ## License
 
 [MIT](LICENSE.txt) — Copyright (c) 2026 Samil Bulbul.
+
+## Application icon
+
+The approved transparent artwork is `Assets/icon-master.png`. Run `python tools/make-icon.py` with Python and Pillow to regenerate the PNG sizes, Windows ICO and raster-backed SVG wrapper. Generated assets are committed; normal builds do not require Python.
