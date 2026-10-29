@@ -19,6 +19,13 @@ public sealed class EditorView : UserControl
     private DateTime _stamp;
     public string? FilePath { get; private set; }
     public bool IsDirty => (Editor.Text ?? "") != _saved;
+    public void Capture(HammerOS.Core.WindowStateRecord record, bool drafts)
+    { record.Path = FilePath; record.Stamp = _stamp; record.Bom = _encoding.GetPreamble().Length > 0; if (drafts && IsDirty) record.Draft = Editor.Text ?? ""; }
+    public async Task RestoreDocument(HammerOS.Core.WindowStateRecord record)
+    {
+        if (record.Path is { } path && File.Exists(path)) await LoadFileAsync(path);
+        if (record.Draft is not null) { FilePath = record.Path; _stamp = record.Stamp; _encoding = new UTF8Encoding(record.Bom, true); Editor.Text = record.Draft; if (!IsDirty) _saved = "\0"; Refresh(); }
+    }
     public EditorView()
     {
         Background = Ui.Cream; Editor.Classes.Add("document"); _name.FontFamily = Ui.Serif;
@@ -62,6 +69,6 @@ public sealed class EditorView : UserControl
     public void ConfirmClose(Action proceed)
     {
         if (!IsDirty) { proceed(); return; }
-        _notice.Content = Ui.Pad(Ui.Stack(10, Ui.Text("Save changes to this document?", 14), Ui.Row(8, Ui.Button("Cancel", () => _notice.Content = null, "outline"), Ui.Button("Discard", () => { _notice.Content = null; proceed(); }), Ui.Button("Save", async () => { if (await SaveAsync()) proceed(); }, "primary"))), 16);
+        _notice.Content = Ui.Pad(Ui.Stack(10, Ui.Text("Save changes to this document?", 14), Ui.Row(8, Ui.Button("Cancel", () => _notice.Content = null, "outline"), Ui.Button("Discard", () => { _notice.Content = null; Editor.Text = _saved; proceed(); }), Ui.Button("Save", async () => { if (await SaveAsync()) proceed(); }, "primary"))), 16);
     }
 }

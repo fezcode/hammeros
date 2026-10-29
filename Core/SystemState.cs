@@ -29,6 +29,7 @@ public sealed class Preferences
 
 public sealed class SavedState
 {
+    public WorkspaceState Workspace { get; set; } = new();
     public int BrandingVersion { get; set; } = 1;
     public List<CalendarEntry> Calendar { get; set; } = [];
     public SudokuGame? Sudoku { get; set; }
@@ -38,6 +39,8 @@ public sealed class SavedState
 
 public sealed class SystemState
 {
+    public WorkspaceState Workspace { get; private set; } = new();
+    public bool Persistent => _statePath is not null;
     public List<CalendarEntry> Calendar { get; private set; } = [];
     public SudokuGame Sudoku { get; set; } = SudokuGame.Create();
     private readonly string? _statePath;
@@ -62,6 +65,7 @@ public sealed class SystemState
                 if (saved is not null && saved.Preferences is not null && saved.Files is not null)
                 {
                     Preferences = saved.Preferences;
+                    Workspace = saved.Workspace ?? new(); Workspace.Normalize();
                     if (saved.Sudoku is { Valid: true }) Sudoku = saved.Sudoku;
                     Calendar = saved.Calendar ?? [];
                     if (Preferences.Bins is not { Length: 5 }) Preferences.Bins = [32, 48, 25, 61, 39];
@@ -119,18 +123,18 @@ public sealed class SystemState
         Files.Remove(item); Save(); return "Removed.";
     }
     public void Record(string message) { Events.Insert(0, message); if (Events.Count > 100) Events.RemoveAt(Events.Count - 1); }
-    public void Save()
+    public void Save(bool notify = true)
     {
         if (_statePath is not null)
         {
             try
             {
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(_statePath))!);
-                File.WriteAllText(_statePath + ".tmp", JsonSerializer.Serialize(new SavedState { Preferences = Preferences, Files = Files, Sudoku = Sudoku, Calendar = Calendar }, new JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(_statePath + ".tmp", JsonSerializer.Serialize(new SavedState { Workspace = Workspace, Preferences = Preferences, Files = Files, Sudoku = Sudoku, Calendar = Calendar }, new JsonSerializerOptions { WriteIndented = true }));
                 File.Move(_statePath + ".tmp", _statePath, true); StorageWarning = null;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { StorageWarning = "Changes are in memory only; session storage is unavailable."; }
         }
-        Changed?.Invoke();
+        if (notify) Changed?.Invoke();
     }
 }

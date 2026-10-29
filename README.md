@@ -65,6 +65,24 @@ Right-click an app on the bottom bar for restore, minimize, maximize, a new inst
 
 **Settings → Wireframe wallpapers** offers the still Classic backdrop, a rotating Earth, drifting mountain terrain, rolling Waves, and a spinning Torus. The palette also tints window title bars, the taskbar, buttons and the dark screens of Refinement, terminals, the editor and Sudoku. Wallpaper and palette choices persist. **Animate live wallpaper** pauses the scene independently; turning off Smooth motion also pauses it. Animation stops while HammerOS is locked or minimized.
 
+## Workspace tools
+
+**Workspaces** on the bottom bar opens the desktop overview. Use **Ctrl+Alt+Left/Right** to switch desktops or **Ctrl+Alt+Up** for the overview. Rename desktops, add up to nine, and move windows using the overview or their taskbar menu. Only the current desktop appears on the taskbar. Native browser and tiled surfaces follow workspace visibility.
+
+**System → Workspace preferences** controls session restoration, file defaults, shortcuts, and named workspace profiles. Sessions save window geometry, desktops, Explorer folders, browser tabs, terminal tab names and reported working directories, and unsaved Text Editor drafts. Profiles save app locations and layouts without editor drafts; launching a profile adds its windows to the current session. On restart, shells are new processes: commands and running programs are never replayed. Tiled opens empty because its external windows are borrowed from Windows. Media files reopen with the player's normal playback behavior. Custom shell prompts that remove directory reporting retain the last reported location.
+
+**Notifications** keeps recent activity and transfer status. Explorer copies and moves share a serial queue, show completed item counts, and can be cancelled between items. Undo returns moved items or sends copied items to the Recycle Bin; it refuses to overwrite an original path or undo an item whose contents changed. Rename has a separate undo action. Transfer receipts and clipboard text history last for the current session only.
+
+**Task Manager** lists HammerOS windows, terminal processes, and attached Windows applications with real memory and accumulated CPU time. Close uses the app's normal unsaved-content confirmation. Ending a terminal session closes its owned processes; detaching tiled apps returns them to Windows.
+
+**System Center** controls the Windows default output volume and mute, shows battery/power state, links to Windows audio-device selection and network controls, and provides media play/pause controls. Clipboard text history is opt-in, stays in memory, and can be cleared at any time.
+
+New utilities include **Calculator**, **Image Viewer** (zoom, fit, rotate), **PDF Reader** (WebView2), **Screenshot** (three-second capture of the foreground HammerOS window, saved as PNG), and **Archives** (browse, create, extract ZIP). ZIP extraction refuses traversal, links, duplicate targets and overwrites, with a 2 GB / 20,000-entry limit.
+
+Browser tabs support **Ctrl+T**, **Ctrl+W**, and **Ctrl+Tab**. Explorer has independent folder tabs, multi-selection, clickable breadcrumbs, favorites, recent files, and a bounded text/image preview. Its **Open with…** menu can remember a HammerOS default for an extension without modifying Windows associations.
+
+**Alt+Space** also searches recent files, favorites, settings, command history, and a background index of Desktop, Documents, Downloads and favorite folders. The index skips hidden/system entries and links, stops at 20,000 entries/eight levels, and refreshes when search opens after two minutes. Type arithmetic such as `(12+8)*3` to calculate and copy a result. History commands run only when explicitly selected.
+
 ## Real files
 
 ![File Explorer browsing a real drive beside the Text Editor](screenshots/files.png)

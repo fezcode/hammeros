@@ -20,6 +20,8 @@ public sealed class HostTerminalSession : IDisposable
     private readonly Task _reader, _writer;
     public TerminalEmulator Emulator { get; }
     public int ProcessId { get; }
+    private string _workingDirectory;
+    public string WorkingDirectory => Volatile.Read(ref _workingDirectory);
     public string ShellName { get; }
     public Task<int> Completion { get; }
     public bool HasExited => Completion.IsCompleted;
@@ -33,7 +35,11 @@ public sealed class HostTerminalSession : IDisposable
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Host terminals require Windows 10 1809 or later.");
         if (initialCommand is not null && shell == "cmd") throw new ArgumentException("Initial commands use PowerShell.", nameof(initialCommand));
+        _workingDirectory = workingDirectory ?? LocalFiles.Home;
         Emulator = new TerminalEmulator(columns, rows, 5000);
+        void RememberDirectory(string? value) { if (!string.IsNullOrEmpty(value) && Path.IsPathFullyQualified(value)) Volatile.Write(ref _workingDirectory, value.Trim('"')); }
+        Emulator.CwdChanged += RememberDirectory;
+        Emulator.Notify += (_, body) => { if (body.StartsWith("9;", StringComparison.Ordinal)) RememberDirectory(body[2..].Trim('"')); };
         var executable = shell == "cmd" ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe") : FindPowerShell();
         ShellName = shell == "cmd" ? "Command Prompt" : Path.GetFileNameWithoutExtension(executable) == "pwsh" ? "PowerShell 7" : "Windows PowerShell";
         SafeFileHandle? inputRead = null, inputWrite = null, outputRead = null, outputWrite = null, job = null;
@@ -53,11 +59,17 @@ public sealed class HostTerminalSession : IDisposable
             var limits = new ExtendedLimits { Basic = new BasicLimits { Flags = 0x2000 } }; // Kill all owned descendants when the job closes.
             if (!SetInformationJobObject(job, 9, ref limits, (uint)Marshal.SizeOf<ExtendedLimits>())) throw new Win32Exception();
             var arguments = shell == "cmd" ? "/D" : "-NoLogo -NoProfile";
-            if (initialCommand is not null) arguments += " -NoExit -EncodedCommand " + Convert.ToBase64String(Encoding.Unicode.GetBytes(initialCommand));
+            if (shell != "cmd")
+            {
+                // Windows ConPTY forwards OSC 9;9 directory reports at each prompt.
+                const string prompt = "function global:prompt { $p=(Get-Location).ProviderPath; if($p) { [Console]::Write([char]27+']9;9;'+$p+[char]7) }; 'PS '+$executionContext.SessionState.Path.CurrentLocation+('>'*($nestedPromptLevel+1))+' ' }; ";
+                arguments += " -NoExit -EncodedCommand " + Convert.ToBase64String(Encoding.Unicode.GetBytes(prompt + (initialCommand ?? "")));
+            }
             command = Marshal.StringToHGlobalUni($"\"{executable}\" " + arguments);
             var variables = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables()) if (entry.Key is string key && entry.Value is string value) variables[key] = value;
             variables["TERM"] = "xterm-256color"; variables["COLORTERM"] = "truecolor"; variables["TERM_PROGRAM"] = "HammerOS";
+            if (shell == "cmd") variables["PROMPT"] = "$E]9;9;$P$E\\$P$G";
             environment = Marshal.StringToHGlobalUni(string.Join('\0', variables.Select(x => x.Key + "=" + x.Value)) + "\0\0");
             // Start suspended: no child can escape process ownership before assignment.
             if (!CreateProcessW(executable, command, IntPtr.Zero, IntPtr.Zero, false, EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT | 0x4, environment,

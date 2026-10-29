@@ -56,6 +56,15 @@ public static class AppCatalog
         new("control", "Control Panel", "control", "Keep your department in harmony."),
         new("settings", "Settings", "settings", "Make yourself comfortable."),
         new("wellness", "Wellness", "wellness", "A moment of prescribed tranquility."),
+        new("notifications", "Notifications", "notes", "Activity, alerts and file transfers."),
+        new("taskmanager", "Task Manager", "control", "Running apps and real process resources."),
+        new("system", "System Center", "control", "Audio, power, media and clipboard history."),
+        new("workspace", "Workspace Preferences", "settings", "Defaults, shortcuts, sessions and profiles."),
+        new("calculator", "Calculator", "control", "Arithmetic and expressions."),
+        new("image", "Image Viewer", "maximize", "View, zoom and rotate images."),
+        new("pdf", "PDF Reader", "book", "Read PDF documents with WebView2."),
+        new("archive", "Archives", "folder", "Browse, create and extract ZIP files."),
+        new("screenshot", "Screenshot", "maximize", "Capture your HammerOS workspace."),
         new("handbook", "Employee Handbook", "book", "Everything you need to know.")
     ];
 }

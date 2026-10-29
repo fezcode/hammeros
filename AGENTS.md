@@ -36,15 +36,15 @@ desktop: never use SendKeys, synthetic clicks, or anything that steals focus fro
 a window this repository did not create. Launching HammerOS so the user can use
 it is fine; driving their machine is not.
 
-1. `dotnet run --project tools/Checks` — 51 checks against real Avalonia
+1. `dotnet run --project tools/Checks` — 65 checks against real Avalonia
    controls, fully headless.
-2. `dotnet run --project tools/HostChecks` — 12 checks over real ConPTY
+2. `dotnet run --project tools/HostChecks` — 13 checks over real ConPTY
    PowerShell and CMD sessions. No window, but it starts real shells.
 3. `dotnet run --project tools/TiledChecks` — 11 checks of native window
    embedding. **Opens real windows** and starts its own throwaway fixture
    applications, then detaches and closes them. It only ever touches windows it
    created.
-4. `dotnet run --project tools/WebChecks` — 8 checks of the WebView2 browser and
+4. `dotnet run --project tools/WebChecks` — 11 checks of the WebView2 browser and
    media engine against a local HTTP server and a generated WAV. **Opens a real
    window.** Its synthetic input goes through the DevTools protocol into its own
    WebView, never to the desktop.

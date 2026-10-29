@@ -28,12 +28,14 @@ try
     }
     string Dump() => session.Emulator.DumpScreen(100);
     await Until(() => Dump().Contains('>'), "PowerShell did not show a prompt"); Pass("Real PowerShell starts inside ConPTY");
+    var cwd = Path.GetTempPath().TrimEnd('\\'); session.Send("Set-Location -LiteralPath '" + cwd.Replace("'", "''") + "'\r"); await Until(() => session.WorkingDirectory?.TrimEnd('\\').Equals(cwd, StringComparison.OrdinalIgnoreCase) == true, "PowerShell directory was not reported: " + session.WorkingDirectory + " / " + Dump()); Pass("PowerShell reports changed directories for session restoration");
     using (var parallel = new HostTerminalSession(80, 24, Path.GetTempPath(), "cmd"))
     {
         await Until(() => parallel.Emulator.DumpScreen().Contains('>'), "Command Prompt did not start");
         parallel.Send("echo CMD_INDEPENDENT\r"); await Until(() => parallel.Emulator.DumpScreen().Contains("CMD_INDEPENDENT"), "CMD command missing");
         Require(!Dump().Contains("CMD_INDEPENDENT"), "Separate terminal outputs mixed");
         parallel.Send("cd\r"); await Until(() => parallel.Emulator.DumpScreen().Contains(Path.GetTempPath().TrimEnd('\\'), StringComparison.OrdinalIgnoreCase), "Working directory not applied");
+        await Until(() => parallel.WorkingDirectory?.TrimEnd('\\').Equals(Path.GetTempPath().TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) == true, "CMD did not report its directory");
         parallel.Dispose(); await parallel.Completion.WaitAsync(TimeSpan.FromSeconds(10)); Require(Alive(session.ProcessId), "Closing one tab ended another shell");
         Pass("CMD and PowerShell run independently with a requested working directory");
     }

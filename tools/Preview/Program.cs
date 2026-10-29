@@ -76,7 +76,7 @@ if (args.Contains("--host"))
     Save("host-terminal"); var completion = surface.Session.Completion; shell.Close(); completion.Wait(TimeSpan.FromSeconds(10));
     Console.WriteLine("Real terminal UI input, rendering, and shutdown verified."); return;
 }
-foreach (var id in new[] { "files", "tiled", "terminal", "browser", "sudoku", "hacker", "editor", "web", "media", "calendar", "settings", "network", "control", "notes", "wellness", "handbook" })
+foreach (var id in AppCatalog.All.Select(x => x.Id).Where(x => x != "refinement"))
 {
     foreach (var frame in shell.Frames.ToArray()) shell.RemoveFrame(frame);
     shell.OpenApp(id); Pump();
@@ -84,6 +84,7 @@ foreach (var id in new[] { "files", "tiled", "terminal", "browser", "sudoku", "h
     Save(id);
 }
 foreach (var frame in shell.Frames.ToArray()) shell.RemoveFrame(frame);
+shell.OpenApp("editor"); shell.MoveToDesktop(shell.Frames.Last(), 1); shell.OpenApp("web"); shell.MoveToDesktop(shell.Frames.Last(), 2); shell.ShowOverview(); Pump(); Save("workspace-overview"); shell.ShowOverview(); foreach (var frame in shell.Frames.ToArray()) shell.RemoveFrame(frame);
 shell.OpenApp("refinement"); shell.ToggleLauncher(); Pump(); Save("launcher"); shell.ToggleLauncher(); shell.Lock(); Pump(); Save("lock"); shell.Unlock();
 shell.Width = 960; shell.Height = 680; Pump(); Save("compact"); shell.Close();
 Console.WriteLine("Rendered native Avalonia previews to " + output);

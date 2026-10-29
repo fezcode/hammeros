@@ -67,6 +67,12 @@ public sealed class TerminalView : UserControl, IDisposable
         var tab = new TerminalTab(count > 1 ? name + " " + count : name, new HostTerminalView(directory, shell, initialCommand), shell);
         Tabs.Add(tab); if (activate) Activate(tab); else RenderTabs(); return tab;
     }
+    public void RestoreTabs(IEnumerable<TerminalStateRecord> records, int selected)
+    {
+        _body.Content = null; foreach (var tab in Tabs) (tab.Content as IDisposable)?.Dispose(); Tabs.Clear(); ActiveTab = null;
+        foreach (var record in records.Take(20)) { var tab = record.Kind == "Department" ? AddDepartment() : AddHost(Directory.Exists(record.Directory) ? record.Directory : LocalFiles.Home, record.Kind == "cmd" ? "cmd" : "powershell", false); RenameTab(tab, record.Title); }
+        if (Tabs.Count == 0) AddDepartment(); Activate(Tabs[Math.Clamp(selected, 0, Tabs.Count - 1)]);
+    }
     public void Select(bool host) => Activate(Tabs.First(x => (x.Content is HostTerminalView) == host));
     public void Activate(TerminalTab tab)
     {

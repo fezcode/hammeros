@@ -17,11 +17,12 @@ public static class FileDrop
         target.AddHandler(DragDrop.DragLeaveEvent, (_, _) => target.Classes.Remove("file-drop"));
         target.AddHandler(DragDrop.DropEvent, (_, e) => { target.Classes.Remove("file-drop"); var paths = Paths(e.Data); if (accepts(paths)) { e.DragEffects = DragDropEffects.Copy; open(paths); } else e.DragEffects = DragDropEffects.None; e.Handled = true; }, RoutingStrategies.Tunnel | RoutingStrategies.Bubble);
     }
-    public static async Task Start(Control source, PointerEventArgs trigger, string path)
+    public static Task Start(Control source, PointerEventArgs trigger, string path) => Start(source, trigger, [path]);
+    public static async Task Start(Control source, PointerEventArgs trigger, string[] paths)
     {
         var provider = TopLevel.GetTopLevel(source)?.StorageProvider; if (provider is null) return;
-        IStorageItem? item = Directory.Exists(path) ? await provider.TryGetFolderFromPathAsync(new Uri(path)) : await provider.TryGetFileFromPathAsync(new Uri(path));
-        if (item is null) return;
-        using (item) { var data = new DataObject(); data.Set(DataFormats.Files, new[] { item }); data.Set(InternalPaths, new[] { path }); await DragDrop.DoDragDrop(trigger, data, DragDropEffects.Copy); }
+        var items = new List<IStorageItem>();
+        try { foreach (var path in paths) { IStorageItem? item = Directory.Exists(path) ? await provider.TryGetFolderFromPathAsync(new Uri(path)) : await provider.TryGetFileFromPathAsync(new Uri(path)); if (item is not null) items.Add(item); } if (items.Count == 0) return; var data = new DataObject(); data.Set(DataFormats.Files, items.ToArray()); data.Set(InternalPaths, paths); await DragDrop.DoDragDrop(trigger, data, DragDropEffects.Copy); }
+        finally { foreach (var item in items) item.Dispose(); }
     }
 }

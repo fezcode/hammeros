@@ -11,6 +11,7 @@ public record LocalEntry(string Path, string Name, bool IsDirectory, long Size, 
 
 public static class LocalFiles
 {
+    public static IEnumerable<LocalEntry> Tree(string path) => EnumerateTree(path);
     public static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     public static string Resolve(string path) => Path.GetFullPath(Environment.ExpandEnvironmentVariables(path.Trim()));
     public static IReadOnlyList<LocalEntry> List(string path, CancellationToken token = default)

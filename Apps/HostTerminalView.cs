@@ -23,6 +23,7 @@ public sealed class HostTerminalView : UserControl, IDisposable
     private readonly string _shell;
     private string? _initialCommand;
     public HostTerminalSession? Session => _session;
+    public string WorkingDirectory { get { if (_session is { } session) if (session.WorkingDirectory is { } cwd && Directory.Exists(cwd)) return cwd; return _directory ?? LocalFiles.Home; } }
     public HostTerminalView(string? directory = null, string shell = "powershell", string? initialCommand = null)
     {
         _directory = directory; _shell = shell; _initialCommand = initialCommand;

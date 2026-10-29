@@ -13,7 +13,7 @@ using HammerOS.Core;
 
 namespace HammerOS.Desktop;
 
-public sealed class ShellWindow : Window
+public sealed partial class ShellWindow : Window
 {
     public SystemState State { get; }
     public Canvas Workspace { get; } = new() { ClipToBounds = true };
@@ -86,11 +86,11 @@ public sealed class ShellWindow : Window
         brand.Classes.Add("launcher-toggle"); launch.Classes.Add("launcher-toggle");
         var taskScroll = new ScrollViewer { Content = _tasks, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, VerticalAlignment = VerticalAlignment.Center };
         var lowerLeft = Ui.Columns("Auto,31,*", launch, new Border { Width = 1, Height = 24, Background = Ui.Line, VerticalAlignment = VerticalAlignment.Center }, taskScroll);
-        var lowerRight = Ui.Row(18, Ui.Button("Show desktop", ShowDesktop), Ui.Label("WORKSPACE 01"));
+        var lowerRight = Ui.Row(4, Ui.Button("Desktop", ShowDesktop), Ui.Button("Workspaces", ShowOverview), Ui.Button("System", () => OpenApp("system")), _notificationsButton);
         var taskbar = new Border { Name = "Taskbar", Background = Ui.Cream, Padding = new Thickness(10, 0, 22, 0), Child = Ui.Columns("*,Auto", lowerLeft, lowerRight), ContextMenu = CreateTaskbarMenu() }; Grid.SetRow(taskbar, 2); layout.Children.Add(taskbar);
         _layers.Children.Add(layout); Content = _layers;
         _timer.Tick += (_, _) => { _clock.Text = DateTime.Now.ToString("HH:mm   ·   dd MMM").ToUpperInvariant(); _network.Text = NetworkInterface.GetIsNetworkAvailable() ? "●  NETWORK ONLINE" : "○  NETWORK OFFLINE"; }; _timer.Start(); _clock.Text = DateTime.Now.ToString("HH:mm   ·   dd MMM").ToUpperInvariant();
-        State.Changed += ApplyPreferences; ApplyPreferences();
+        InitializeWorkspace(); State.Changed += ApplyPreferences; ApplyPreferences();
         PropertyChanged += (_, e) => { if (e.Property == WindowStateProperty) UpdateWallpaper(); };
         Opened += (_, _) => Dispatcher.UIThread.Post(StartDesktop, DispatcherPriority.Loaded);
         Workspace.SizeChanged += (_, e) => { netButton.IsVisible = e.NewSize.Width >= 1250; profile.IsVisible = e.NewSize.Width >= 1100; bgCopy.IsVisible = e.NewSize.Width >= 1150; foreach (var frame in Frames) frame.Constrain(); ResolveOverlaps(); };
@@ -98,19 +98,20 @@ public sealed class ShellWindow : Window
         AddHandler(PointerPressedEvent, (_, e) => { if (_launcher is not null && e.Source is Visual source) { var ancestors = source.GetSelfAndVisualAncestors().ToArray(); if (!ancestors.Contains(_launcher) && !ancestors.OfType<Control>().Any(x => x.Classes.Contains("launcher-toggle"))) CloseLauncher(); } }, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => { CloseLauncher(); CloseSpotlight(); };
         AddHandler(PointerPressedEvent, (_, e) => { if (_spotlight is not null && e.Source is Visual source && !source.GetSelfAndVisualAncestors().Contains(_spotlight)) CloseSpotlight(); }, RoutingStrategies.Tunnel);
-        Closing += (_, e) => { if (_allowExit) return; if (Frames.Any(x => x.AppContent is TiledView { TileCount: > 0 })) { e.Cancel = true; ShowPower(); } else if (Frames.Any(x => x.AppContent is EditorView { IsDirty: true })) { e.Cancel = true; Dispatcher.UIThread.Post(RequestExit); } };
-        Closed += (_, _) => { _timer.Stop(); State.Save(); State.Changed -= ApplyPreferences; foreach (var frame in Frames.ToArray()) (frame.AppContent as IDisposable)?.Dispose(); };
+        Closing += (_, e) => { if (_allowExit) return; if (Transfers.IsBusy) { e.Cancel = true; ShowPower(); } else if (Frames.Any(x => x.AppContent is TiledView { TileCount: > 0 })) { e.Cancel = true; ShowPower(); } else if (!State.Workspace.RestoreSession && Frames.Any(x => x.AppContent is EditorView { IsDirty: true })) { e.Cancel = true; Dispatcher.UIThread.Post(RequestExit); } };
+        Closed += (_, _) => { _timer.Stop(); _workspaceTimer.Stop(); _searchCancellation.Cancel(); SaveSession(); State.Save(); State.Changed -= ApplyPreferences; foreach (var frame in Frames.ToArray()) (frame.AppContent as IDisposable)?.Dispose(); };
     }
     public void StartDesktop()
     {
         if (_started) return; _started = true;
-        OpenApp("refinement");
-        if (Workspace.Bounds.Width >= 1150) OpenApp("terminal");
+        if (State.Workspace.RestoreSession && State.Workspace.Windows.Count > 0) RestoreWindows(State.Workspace.Windows.ToArray(), false);
+        else { OpenApp("refinement"); if (Workspace.Bounds.Width >= 1150) OpenApp("terminal"); }
         if (State.StorageWarning is { } message) Toast(message);
     }
     public void ApplyPreferences()
     {
         Motion.Enabled = State.Preferences.Motion;
+        _notificationsButton.Content = "Alerts " + State.Workspace.Notifications.Count(x => !x.Read);
         foreach (var frame in Frames) frame.UpdateResizeHandles();
         if (_collisions != Collisions) { _collisions = Collisions; if (Collisions) ResolveOverlaps(); else foreach (var frame in Frames.Where(x => x.IsMaximized && x.IsSolid)) frame.Constrain(); }
         // Palette brushes recolor in place; custom-drawn views only pick them up on their next render.
@@ -130,17 +131,21 @@ public sealed class ShellWindow : Window
         Control content = id switch
         {
             "refinement" => new RefinementView(State), "terminal" => new TerminalView(State, OpenApp),
-            "files" => new FilesView(State, Toast, OpenTerminalAt, OpenMedia, OpenText), "browser" => new IntranetView(State), "notes" => new NotesView(State, Toast),
+            "files" => new FilesView(State, Toast, OpenTerminalAt, OpenMedia, OpenText, path => OpenResource(path), ShowOpenWith, Transfers), "browser" => new IntranetView(State), "notes" => new NotesView(State, Toast),
             "sudoku" => new SudokuView(State), "hacker" => new HackerView(), "editor" => new EditorView(), "web" => new BrowserView(), "media" => new MediaView(), "calendar" => new CalendarView(State),
             "tiled" => new TiledView(Toast),
+            "notifications" => new NotificationView(this), "taskmanager" => new TaskManagerView(this),
+            "system" => new SystemCenterView(this), "workspace" => new WorkspaceSettingsView(this),
+            "calculator" => new CalculatorView(), "image" => new ImageView(), "pdf" => new PdfView(),
+            "archive" => new ArchiveView(), "screenshot" => new ScreenshotView(CaptureScreen),
             "settings" => new SettingsView(State, ToggleFullscreen, Toast), "control" => new ControlView(State, Toast),
             "network" => new NetworkView(State), "wellness" => new WellnessView(State), "handbook" => new HandbookView(),
             _ => new TextBlock()
         };
-        var size = id switch { "refinement" => new Size(Workspace.Bounds.Width >= 1320 ? Math.Clamp(Workspace.Bounds.Width - 676, 760, 940) : 826, 568), "terminal" => new Size(640, 440), "files" => new Size(1000, 650), "tiled" => new Size(1100, 670), "settings" => new Size(770, 680), "sudoku" => new Size(640, 710), "calendar" => new Size(900, 640), "web" => new Size(1100, 700), "media" => new Size(960, 640), "wellness" => new Size(680, 568), "network" => new Size(860, 650), _ => new Size(790, 570) };
+        var size = id switch { "calculator" => new Size(560, 720), "workspace" or "system" => new Size(820, 690), "taskmanager" => new Size(850, 650), "refinement" => new Size(Workspace.Bounds.Width >= 1320 ? Math.Clamp(Workspace.Bounds.Width - 676, 760, 940) : 826, 568), "terminal" => new Size(640, 440), "files" => new Size(1000, 650), "tiled" => new Size(1100, 670), "settings" => new Size(770, 680), "sudoku" => new Size(640, 710), "calendar" => new Size(900, 640), "web" => new Size(1100, 700), "media" => new Size(960, 640), "wellness" => new Size(680, 568), "network" => new Size(860, 650), _ => new Size(790, 570) };
         var instance = _instanceCounts.GetValueOrDefault(id) + 1; _instanceCounts[id] = instance;
         var frame = new AppFrame(this, app, content, Math.Min(size.Width, Math.Max(440, Workspace.Bounds.Width - 40)), Math.Min(size.Height, Math.Max(300, Workspace.Bounds.Height - 36)), instance);
-        Frames.Add(frame); Workspace.Children.Add(frame);
+        frame.DesktopId = CurrentDesktop; Frames.Add(frame); Workspace.Children.Add(frame);
         double x = id == "refinement" ? 156 : id == "terminal" && Frames.Count == 2 ? Workspace.Bounds.Width - frame.Width - 32 : (Workspace.Bounds.Width - frame.Width) / 2 + (Frames.Count % 3) * 15;
         double y = id == "refinement" ? 52 : id == "terminal" && Frames.Count == 2 ? Workspace.Bounds.Height - frame.Height - 40 : 75 + (Frames.Count % 4) * 24;
         if (instance > 1) { x += ((instance - 1) % 6) * 28; y += ((instance - 1) % 6) * 28; }
@@ -180,12 +185,12 @@ public sealed class ShellWindow : Window
         }
         Reflow();
     }
-    public void FocusFrame(AppFrame active) { _active = active; active.ZIndex = ++_z; foreach (var frame in Frames) frame.SetActive(frame == active); UpdateTaskbar(); SyncHostedWindows(); }
-    public void RemoveFrame(AppFrame frame) { (frame.AppContent as IDisposable)?.Dispose(); Frames.Remove(frame); Workspace.Children.Remove(frame); if (Frames.LastOrDefault(x => !x.IsMinimized) is { } next) FocusFrame(next); UpdateTaskbar(); Reflow(); }
+    public void FocusFrame(AppFrame active) { if (active.DesktopId != CurrentDesktop) SwitchDesktop(active.DesktopId); _active = active; active.ZIndex = ++_z; foreach (var frame in Frames) frame.SetActive(frame == active); UpdateTaskbar(); SyncHostedWindows(); }
+    public void RemoveFrame(AppFrame frame) { (frame.AppContent as IDisposable)?.Dispose(); Frames.Remove(frame); Workspace.Children.Remove(frame); if (Frames.LastOrDefault(x => !x.IsMinimized && x.DesktopId == CurrentDesktop) is { } next) FocusFrame(next); UpdateTaskbar(); Reflow(); }
     public void UpdateTaskbar()
     {
         _tasks.Children.Clear();
-        foreach (var frame in Frames)
+        foreach (var frame in Frames.Where(x => x.DesktopId == CurrentDesktop))
         {
             var app = AppCatalog.All.First(x => x.Id == frame.AppId);
             var b = Ui.Button("", () => { if (frame.IsMinimized) frame.Restore(); else FocusFrame(frame); });
@@ -216,6 +221,7 @@ public sealed class ShellWindow : Window
                 Add(frame.IsMaximized ? "Restore size" : "Maximize", "maximize", () => { frame.Restore(); frame.ToggleMaximize(); });
                 menu.Items.Add(new Separator());
                 Add("New window", "plus", () => OpenApp(frame.AppId));
+                var desktops = new MenuItem { Header = "Move to workspace" }; for (var i = 0; i < State.Workspace.Desktops.Count; i++) { var destination = i; var entry = new MenuItem { Header = State.Workspace.Desktops[i], IsEnabled = i != frame.DesktopId }; entry.Click += (_, _) => MoveToDesktop(frame, destination); desktops.Items.Add(entry); } menu.Items.Add(desktops);
                 Add("Close window", "close", frame.Close);
             }
             else
@@ -235,14 +241,13 @@ public sealed class ShellWindow : Window
         menu.Closed += (_, _) => { _taskbarMenuOpen = false; SyncHostedWindows(); };
         return menu;
     }
-    public void ShowDesktop() { if (Frames.Any(x => !x.IsMinimized)) foreach (var f in Frames) f.Minimize(); else foreach (var f in Frames) f.Restore(); }
+    public void ShowDesktop() { var frames = Frames.Where(x => x.DesktopId == CurrentDesktop).ToArray(); if (frames.Any(x => !x.IsMinimized)) foreach (var f in frames) f.Minimize(); else foreach (var f in frames) f.Restore(); }
     public void ToggleFullscreen() => WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
     private void OnGlobalKey(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.F11) { ToggleFullscreen(); e.Handled = true; }
         if (IsLocked) return;
-        if (e.Key == Key.Space && e.KeyModifiers.HasFlag(KeyModifiers.Alt)) { ToggleSpotlight(); e.Handled = true; return; }
-        if (e.Key == Key.Space && e.KeyModifiers.HasFlag(KeyModifiers.Control)) { ToggleLauncher(); e.Handled = true; }
+        if (HandleWorkspaceShortcut(e)) return;
         if (e.Key == Key.L && e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Source is not TerminalSurface && e.Source is not TextBox && !(e.Source is Visual visual && visual.GetSelfAndVisualAncestors().OfType<LocalFilesView>().Any())) { Lock(); e.Handled = true; }
         if (e.Key == Key.Escape && _launcher is not null) { CloseLauncher(); e.Handled = true; }
     }
@@ -286,13 +291,14 @@ public sealed class ShellWindow : Window
     {
         if (_overlayOpen) return;
         var overlay = new Border { Background = Brush.Parse("#B0102E34") };
-        var panel = Ui.Stack(20, Ui.Heading("SESSION CONTROL", "The day is done.", "Preferences and refinement progress are saved. Save any text edits before leaving. Terminal sessions will end; tiled apps return to Windows."));
+        var panel = Ui.Stack(20, Ui.Heading("SESSION CONTROL", "The day is done.", "Preferences and progress are saved. With session restore enabled, editor drafts and window locations reopen next time. Terminal processes end; tiled apps return to Windows."));
         var cancel = Ui.Button("Return to work", () => { _layers.Children.Remove(overlay); _overlayOpen = false; SyncHostedWindows(); }, "outline");
         panel.Children.Add(Ui.Row(12, cancel, Ui.Button("End session", () => { _layers.Children.Remove(overlay); _overlayOpen = false; SyncHostedWindows(); RequestExit(); }, "primary")));
         overlay.Child = new Border { Width = 475, Padding = new Thickness(36), Background = Ui.Cream, Child = panel, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }; _layers.Children.Add(overlay); _overlayOpen = true; SyncHostedWindows(); Motion.Enter(overlay, 0); cancel.Focus();
     }
     public void Toast(string message)
     {
+        RecordNotification(message);
         if (_toast is not null) _layers.Children.Remove(_toast);
         var text = Ui.Text(message, 12); text.Name = "NotificationText"; text.TextWrapping = TextWrapping.Wrap;
         var toast = new Border { Name = "Notification", Width = 470, Padding = new Thickness(20, 15), Background = Ui.Cream, BorderBrush = Ui.Line, BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(24, 24, 24, 76) };
@@ -303,6 +309,8 @@ public sealed class ShellWindow : Window
     }
     private void RequestExit()
     {
+        if (Transfers.IsBusy) { Toast("File transfers are still running. Wait for completion or cancel queued items in Notifications before ending the session."); return; }
+        if (State.Workspace.RestoreSession) { SaveSession(); _allowExit = true; Close(); return; }
         var pending = new Queue<AppFrame>(Frames.Where(x => x.AppContent is EditorView { IsDirty: true }));
         void Next() { if (pending.TryDequeue(out var frame)) { if (IsLocked) Unlock(); frame.Restore(); FocusFrame(frame); ((EditorView)frame.AppContent).ConfirmClose(Next); } else { _allowExit = true; State.Save(); Close(); } }
         Next();
@@ -313,6 +321,7 @@ public sealed class ShellWindow : Window
         var workspace = new MenuItem { Header = "Workspace" }; var system = new MenuItem { Header = "System" };
         void Add(MenuItem parent, string title, Action action) { var item = new MenuItem { Header = title }; item.Click += (_, _) => action(); parent.Items.Add(item); }
         Add(workspace, "Search    Alt+Space", ToggleSpotlight); Add(workspace, "Application directory    Ctrl+Space", ToggleLauncher); Add(workspace, "New PowerShell terminal", () => OpenTerminalAt(LocalFiles.Home)); Add(workspace, "File Explorer", () => OpenApp("files")); Add(workspace, "tiled · Windows applications", () => OpenApp("tiled")); Add(workspace, "Show desktop", ShowDesktop);
+        Add(workspace, "Workspace overview", ShowOverview); Add(system, "Workspace preferences", () => OpenApp("workspace")); Add(system, "Task Manager", () => OpenApp("taskmanager")); Add(system, "System Center", () => OpenApp("system")); Add(system, "Notifications", () => OpenApp("notifications"));
         Add(system, "HammerOS preferences", () => OpenApp("settings")); Add(system, "Network connections", () => OpenApp("network")); Add(system, "Windows Settings", () => OpenExternal("ms-settings:")); Add(system, "Windows Task Manager", () => OpenExternal("taskmgr.exe")); Add(system, "Windows Explorer", () => OpenExternal(LocalFiles.Home)); system.Items.Add(new Separator()); Add(system, "Lock workspace", Lock); Add(system, "End HammerOS session", ShowPower);
         menu.Items.Add(workspace); menu.Items.Add(_windowMenu); menu.Items.Add(system); return menu;
     }
@@ -331,21 +340,21 @@ public sealed class ShellWindow : Window
     { if (IsLocked) return; OpenApp("editor"); if (Frames.LastOrDefault(x => x.AppId == "editor")?.AppContent is EditorView view) await view.LoadFileAsync(path); }
     public void TileWindows()
     {
-        var list = Frames.Where(x => !x.IsMinimized).ToArray(); if (list.Length == 0) return;
+        var list = Frames.Where(x => !x.IsMinimized && x.DesktopId == CurrentDesktop).ToArray(); if (list.Length == 0) return;
         var cols = Math.Min(3, (int)Math.Ceiling(Math.Sqrt(list.Length))); var rows = (int)Math.Ceiling(list.Length / (double)cols); var w = Workspace.Bounds.Width / cols; var h = Workspace.Bounds.Height / rows;
         for (var i = 0; i < list.Length; i++) list[i].ArrangeTo(new Rect(i % cols * w + 5, i / cols * h + 5, Math.Max(100, w - 10), Math.Max(100, h - 10)));
     }
     public void CascadeWindows()
-    { if (Collisions) { TileWindows(); return; } var i = 0; foreach (var frame in Frames) { frame.ArrangeTo(new Rect(100 + i * 28, 25 + i * 25, Math.Min(820, Workspace.Bounds.Width - 140), Math.Min(570, Workspace.Bounds.Height - 60))); i = (i + 1) % 6; } }
+    { if (Collisions) { TileWindows(); return; } var i = 0; foreach (var frame in Frames.Where(x => x.DesktopId == CurrentDesktop)) { frame.ArrangeTo(new Rect(100 + i * 28, 25 + i * 25, Math.Min(820, Workspace.Bounds.Width - 140), Math.Min(570, Workspace.Bounds.Height - 60))); i = (i + 1) % 6; } }
     private void SyncHostedWindows()
-    { UpdateWallpaper(); foreach (var frame in Frames) if (frame.AppContent is INativeWorkspace native) native.SetWorkspaceActive(frame == _active && !frame.IsMinimized && !IsLocked && _launcher is null && _spotlight is null && !_overlayOpen && !_taskbarMenuOpen); }
+    { UpdateWallpaper(); foreach (var frame in Frames) if (frame.AppContent is INativeWorkspace native) native.SetWorkspaceActive(frame == _active && frame.DesktopId == CurrentDesktop && !frame.IsMinimized && !IsLocked && _launcher is null && _spotlight is null && !_overlayOpen && !_taskbarMenuOpen); }
     private void UpdateWallpaper() => _backdrop.Configure(State.Preferences.WallpaperScene, State.Preferences.Motion && State.Preferences.WallpaperAnimation && !IsLocked && WindowState != WindowState.Minimized);
     public async void ToggleSpotlight()
     {
         if (IsLocked || _overlayOpen) return;
         if (_spotlight is not null) { CloseSpotlight(); return; }
         CloseLauncher(); var palette = new CommandPalette(SearchCommands, CloseSpotlight); _spotlight = palette; _layers.Children.Add(palette); SyncHostedWindows(); Motion.Enter(palette, -8); palette.Search.Focus();
-        _windowsAppsLoading ??= WindowsApplications.LoadAsync();
+        StartFileIndex(); _windowsAppsLoading ??= WindowsApplications.LoadAsync();
         _windowsApps = await _windowsAppsLoading; if (_spotlight == palette) palette.Refresh();
     }
     private void CloseSpotlight()
@@ -363,10 +372,11 @@ public sealed class ShellWindow : Window
         var term = switching ? query[7..].Trim() : query.StartsWith("open ", StringComparison.OrdinalIgnoreCase) ? query[5..].Trim() : query;
         bool Match(string value) => term.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(word => value.Contains(word, StringComparison.OrdinalIgnoreCase));
         var actions = new List<PaletteAction>();
+        if (!switching) foreach (var extra in WorkspaceSearch(query)) yield return extra;
         foreach (var frame in Frames.OrderByDescending(x => x.ZIndex)) actions.Add(new("Switch to " + frame.DisplayName, frame.IsMinimized ? "Open window · minimized" : "Open window", AppCatalog.All.First(x => x.Id == frame.AppId).Symbol, frame.AppId, frame.Restore));
         if (!switching)
         {
-            foreach (var app in AppCatalog.All) actions.Add(new(app.Name, "Open HammerOS app · " + app.Description, app.Symbol, app.Id, () => OpenApp(app.Id)));
+            foreach (var app in AppCatalog.All) actions.Add(new(app.Name, "Open HammerOS app · " + app.Description, app.Symbol, app.Id + " " + app.Description, () => OpenApp(app.Id)));
             void Add(string title, string detail, string icon, Action run) => actions.Add(new(title, detail, icon, "", run));
             Add("Toggle fullscreen", "Switch between fullscreen and windowed · F11", "maximize", ToggleFullscreen);
             Add("Toggle smooth motion", "Switch animations " + (State.Preferences.Motion ? "off" : "on"), "settings", () => { State.Preferences.Motion = !State.Preferences.Motion; State.Save(); });
@@ -383,7 +393,7 @@ public sealed class ShellWindow : Window
         if (!switching && query.Length > 0) yield return new("Run in PowerShell", query + "  ·  Real terminal", "terminal", "", () => RunCommand(query));
     }
     private void RunCommand(string command)
-    { if (IsLocked) return; OpenApp("terminal"); if (Frames.Last().AppContent is TerminalView view) { var tab = view.AddHost(initialCommand: command); view.RenameTab(tab, command); } }
+    { if (IsLocked) return; State.Workspace.CommandHistory.Remove(command); State.Workspace.CommandHistory.Insert(0, command); State.Workspace.CommandHistory = State.Workspace.CommandHistory.Take(50).ToList(); State.Save(false); OpenApp("terminal"); if (Frames.Last().AppContent is TerminalView view) { var tab = view.AddHost(initialCommand: command); view.RenameTab(tab, command); } }
     private void OpenExternal(string target)
     { try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); } catch (Exception ex) { Toast(ex.Message); } }
 }

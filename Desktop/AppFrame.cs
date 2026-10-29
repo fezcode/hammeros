@@ -13,6 +13,8 @@ namespace HammerOS.Desktop;
 
 public sealed class AppFrame : Border
 {
+    public int DesktopId { get; set; }
+    public Rect RestoreBounds => IsMaximized ? _restore : Footprint;
     public string AppId { get; }
     public string DisplayName { get; }
     public bool IsMinimized { get; private set; }
@@ -125,11 +127,11 @@ public sealed class AppFrame : Border
         if (_busy) return; _busy = true; _leaving = true; _pendingTarget = null;
         var move = new TranslateTransform(); RenderTransform = move;
         var opacity = Opacity;
-        Motion.For(this, 210, t => { Opacity = opacity * (1 - t); move.Y = t * 34; }, () => { IsMinimized = true; IsVisible = false; _busy = false; _leaving = false; _shell.UpdateTaskbar(); });
+        Motion.For(this, 210, t => { Opacity = opacity * (1 - t); move.Y = t * 34; }, () => { IsMinimized = true; IsVisible = false; _busy = false; _leaving = false; _shell.OnFrameMinimized(this); });
         _shell.Reflow();
     }
     public void Restore()
-    { if (_busy) return; if (!IsMinimized) { _shell.FocusFrame(this); return; } IsMinimized = false; IsVisible = true; _shell.Settle(this); Motion.Enter(this, 24); _shell.FocusFrame(this); _shell.UpdateTaskbar(); }
+    { if (_busy) return; _shell.SwitchDesktop(DesktopId); if (!IsMinimized) { _shell.FocusFrame(this); return; } IsMinimized = false; IsVisible = true; _shell.Settle(this); Motion.Enter(this, 24); _shell.FocusFrame(this); _shell.UpdateTaskbar(); }
     public void Close()
     {
         if (_busy) return;
