@@ -50,6 +50,27 @@ try
     Check("Corrupt state recovers to a usable desktop", () => { File.WriteAllText(temp, "not json"); var loaded = new SystemState(temp); Require(loaded.StorageWarning is not null && loaded.Find("/personal/notes.txt") is not null); });
 }
 finally { if (File.Exists(temp)) File.Delete(temp); }
+var migrationRoot = Path.Combine(Path.GetTempPath(), "HammerOS-migrate-" + Guid.NewGuid().ToString("N"));
+try
+{
+    Check("Legacy data folder moves whole into the fezcode root", () => {
+        var legacy = Path.Combine(migrationRoot, "a", "HammerOS"); var target = Path.Combine(migrationRoot, "a", "fezcode", "HammerOS");
+        Directory.CreateDirectory(Path.Combine(legacy, "WebView2", "Default")); File.WriteAllText(Path.Combine(legacy, "session.json"), "old"); File.WriteAllText(Path.Combine(legacy, "WebView2", "Default", "x"), "w");
+        AppPaths.MigrateLegacyData(legacy, target);
+        Require(!Directory.Exists(legacy) && File.ReadAllText(Path.Combine(target, "session.json")) == "old" && File.Exists(Path.Combine(target, "WebView2", "Default", "x")));
+        AppPaths.MigrateLegacyData(legacy, target); Require(File.ReadAllText(Path.Combine(target, "session.json")) == "old");
+    });
+    Check("Legacy migration keeps newer files and deletes stale legacy copies", () => {
+        var legacy = Path.Combine(migrationRoot, "b", "HammerOS"); var target = Path.Combine(migrationRoot, "b", "fezcode", "HammerOS");
+        Directory.CreateDirectory(Path.Combine(legacy, "WebView2")); Directory.CreateDirectory(target);
+        File.WriteAllText(Path.Combine(legacy, "session.json"), "old"); File.WriteAllText(Path.Combine(legacy, "WebView2", "y"), "w"); File.WriteAllText(Path.Combine(target, "session.json"), "new");
+        AppPaths.MigrateLegacyData(legacy, target);
+        Require(File.ReadAllText(Path.Combine(target, "session.json")) == "new" && File.Exists(Path.Combine(target, "WebView2", "y")));
+        Require(!File.Exists(Path.Combine(legacy, "session.json")) && !Directory.Exists(legacy));
+    });
+    Check("Legacy migration of a missing folder is a no-op", () => { AppPaths.MigrateLegacyData(Path.Combine(migrationRoot, "none"), Path.Combine(migrationRoot, "none-target")); Require(!Directory.Exists(Path.Combine(migrationRoot, "none-target"))); });
+}
+finally { if (Directory.Exists(migrationRoot)) Directory.Delete(migrationRoot, true); }
 var shell = new ShellWindow(state, true); shell.Show(); Pump(); shell.StartDesktop(); Pump();
 void Pump() { Dispatcher.UIThread.RunJobs(); shell.UpdateLayout(); Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRenderTimerTick(); }
 void WaitFor(Func<bool> condition)

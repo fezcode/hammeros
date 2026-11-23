@@ -79,7 +79,8 @@ steps in order and stop and report any failure before proceeding:
 1. Run `./version.ps1 -Bump patch` by default, or `-Set x.y.z` for a requested
    version. Clarify conflicting or ambiguous version instructions. The script
    keeps `HammerOS.csproj`, `Core/Product.cs`, the Forge app version, the two
-   wizard strings and the registry Version synchronized. Run `./version.ps1`
+   wizard strings synchronized; the registry Version is `"${app.version}"` and
+   the script fails if it is hard-coded. Run `./version.ps1`
    with no arguments to verify.
 2. Run `./build.ps1` to build, run all five verification layers, publish the
    self-contained single-file host into `dist/HammerOS`, stage the licences
@@ -133,12 +134,14 @@ steps in order and stop and report any failure before proceeding:
   checks this, because a shortcut pointing at a file that was never written
   renders blank.
 - The session — `session.json` and the WebView2 profile — lives in
-  `%LOCALAPPDATA%\HammerOS`, **not** under the usual `%APPDATA%\fezcode\<App>`
-  root the other Fezcode apps use. `forge.toml` lists it as `settings_dirs`, so a
+  `%LOCALAPPDATA%\fezcode\HammerOS` (computed only in `Core/AppPaths.cs`).
+  session.json mixes preferences with virtual files and progress, so nothing is
+  split out to `%APPDATA%\fezcode`. On startup `AppPaths.MigrateLegacyData`
+  moves the old (0.3.7 and earlier) `%LOCALAPPDATA%\HammerOS` there; when a file exists
+  in both places the new copy wins and the stale old one is deleted. `forge.toml` lists it as `settings_dirs`, so a
   normal uninstall preserves it and only the installer's "Also remove my settings
   and data" option deletes it. Never pass `--purge-settings` to a test uninstall:
-  it deletes the user's real workspace, files and progress. Moving to the fezcode
-  root would need a migration and is a separate decision.
+  it deletes the user's real workspace, files and progress.
 - The install is per-user under `${LOCALAPPDATA}/Programs/HammerOS`. HammerOS
   needs no elevation and `tiled` reparents windows owned by the signed-in user,
   so a Program Files default would only add UAC.
@@ -152,7 +155,7 @@ steps in order and stop and report any failure before proceeding:
   wizard: `HammerOS-Setup-<v>.exe /S --accept-license --dir "<temp>"`, then
   `<temp>\uninstall.exe --app-id io.fezcode.hammeros --silent`. Confirm the files,
   both shortcuts, the `HKCU\Software\fezcode\HammerOS` key and the ARP entry are
-  all gone afterwards, and that `%LOCALAPPDATA%\HammerOS` survived.
+  all gone afterwards, and that `%LOCALAPPDATA%\fezcode\HammerOS` survived.
 - Check GUI Forge process exit codes with `Start-Process -Wait -PassThru`; a
   GUI-subsystem binary does not propagate `$LASTEXITCODE` through the call
   operator. Quote arguments containing spaces.

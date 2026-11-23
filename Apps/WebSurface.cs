@@ -4,6 +4,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.Input;
 using System.Runtime.InteropServices;
+using HammerOS.Core;
 using HammerOS.Desktop;
 using Microsoft.Web.WebView2.Core;
 
@@ -49,7 +50,7 @@ public sealed class WebSurface : NativeControlHost, IDisposable
     {
         try
         {
-            var environment = await CoreWebView2Environment.CreateAsync(null, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HammerOS", "WebView2"));
+            var environment = await CoreWebView2Environment.CreateAsync(null, AppPaths.WebView2);
             if (_disposed) return;
             var controller = await environment.CreateCoreWebView2ControllerAsync(_container == IntPtr.Zero ? _parking : _container);
             if (_disposed) { controller.Close(); return; }

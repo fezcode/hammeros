@@ -1,6 +1,6 @@
 [app]
 name    = "HammerOS"
-version = "0.3.7"
+version = "0.4.0"
 id      = "io.fezcode.hammeros"
 icon    = "Assets/HammerOS.ico"
 
@@ -22,18 +22,19 @@ window_title = "HammerOS Setup"
 default_dir = "${LOCALAPPDATA}/Programs/HammerOS"
 
 # Everything under ${INSTALLDIR} is app payload and goes on uninstall. The session
-# — session.json and the WebView2 profile — lives in %LOCALAPPDATA%\HammerOS and is
-# only removed when the user ticks "Also remove my settings and data".
+# — session.json and the WebView2 profile — lives in
+# %LOCALAPPDATA%\fezcode\HammerOS (Core/AppPaths.cs) and is only removed when the
+# user ticks "Also remove my settings and data". Nothing goes under %APPDATA%.
 [uninstall]
-settings_dirs = ["${LOCALAPPDATA}/HammerOS"]
+settings_dirs = ["${LOCALAPPDATA}/fezcode/HammerOS"]
 
 # Step titles double as the labels in huh's left rail, so they are short. The
-# rail already heads itself with "HAMMEROS 0.3.7", and each body carries the
+# rail already heads itself with "HAMMEROS 0.4.0", and each body carries the
 # version where it matters; version.ps1 rewrites those.
 [[steps]]
 type  = "welcome"
 title = "Welcome"
-body  = "This wizard will install HammerOS 0.3.7 on your computer.\n\nHammerOS is a fullscreen retro workspace: your real files and drives, independent PowerShell and CMD tabs, Windows applications embedded in tiled, and an unreasonably reassuring employee intranet.\n\nClick Next to continue."
+body  = "This wizard will install HammerOS 0.4.0 on your computer.\n\nHammerOS is a fullscreen retro workspace: your real files and drives, independent PowerShell and CMD tabs, Windows applications embedded in tiled, and an unreasonably reassuring employee intranet.\n\nClick Next to continue."
 
 [[steps]]
 type  = "license"
@@ -44,7 +45,7 @@ file  = "LICENSE.txt"
 [[steps]]
 type  = "folder"
 title = "Location"
-body  = "Choose where to install HammerOS 0.3.7."
+body  = "Choose where to install HammerOS 0.4.0."
 
 [[steps]]
 type  = "shortcuts"
@@ -114,4 +115,4 @@ data  = "${INSTALLDIR}"
 hive  = "HKCU"
 key   = "Software\\fezcode\\HammerOS"
 value = "Version"
-data  = "0.3.7"
+data  = "${app.version}"

@@ -7,7 +7,8 @@
   The version appears in HammerOS.csproj (<Version>), in Core/Product.cs (the
   constant the app, the Department shell and the seeded workstation.conf all
   print), and in forge.toml (the [app] version, the two wizard strings that
-  name the version, and the registry Version data). This keeps them in lockstep
+  name the version; the registry Version data is "${app.version}" and must stay
+  so). This keeps them in lockstep
   so a release cannot ship mismatched numbers.
 
 .EXAMPLE
@@ -76,8 +77,14 @@ function Read-Versions([string] $root) {
         'HammerOS.csproj <Version>'   = if ($csproj -match '<Version>([^<]+)</Version>') { $Matches[1] } else { $null }
         'Core/Product.cs Version'     = if ($product -match 'const string Version\s*=\s*"([^"]+)"') { $Matches[1] } else { $null }
         'forge.toml [app] version'    = if ($forge -match '(?m)^version\s*=\s*"([^"]+)"') { $Matches[1] } else { $null }
-        'forge.toml registry Version' = if ($forge -match '(?ms)value\s*=\s*"Version".*?data\s*=\s*"([^"]+)"') { $Matches[1] } else { $null }
     }
+}
+
+# The registry Version entry takes its data from "${app.version}", so Forge fills
+# it from [app] version and it can never drift. Fail if someone hard-codes it again.
+function Test-RegistryVersion([string] $root) {
+    $forge = Read-Utf8 (Get-Places $root).Forge
+    if ($forge -match '(?ms)value\s*=\s*"Version"\s*\r?\n\s*data\s*=\s*"([^"]+)"') { $Matches[1] -eq '${app.version}' } else { $true }
 }
 
 function Test-Consistent([string] $root, [string] $expected) {
@@ -85,7 +92,7 @@ function Test-Consistent([string] $root, [string] $expected) {
     $values = @($found.Values | Where-Object { $_ })
     $target = if ($expected) { $expected } elseif ($values.Count) { $values[0] } else { $null }
 
-    $allOk = $target -and -not ($found.Values | Where-Object { $_ -ne $target })
+    $allOk = $target -and -not ($found.Values | Where-Object { $_ -ne $target }) -and (Test-RegistryVersion $root)
     [pscustomobject]@{ Found = $found; Target = $target; AllOk = [bool]$allOk }
 }
 
@@ -107,7 +114,6 @@ function Set-Version([string] $root, [string] $version) {
     # comment quotes it too.
     $forge = [regex]::Replace($forge, 'HammerOS \d+\.\d+\.\d+', "HammerOS $version")
     $forge = [regex]::Replace($forge, 'HAMMEROS \d+\.\d+\.\d+', "HAMMEROS $version")
-    $forge = [regex]::Replace($forge, '(?ms)(value\s*=\s*"Version"\s*\r?\n\s*data\s*=\s*)"[^"]+"', "`${1}`"$version`"")
     Write-Utf8 $p.Forge $forge
 }
 
@@ -120,6 +126,9 @@ function Show-Report([string] $root, [string] $expected) {
         $mark = if ($ok) { 'ok  ' } else { 'FAIL' }
         $colour = if ($ok) { 'DarkGray' } else { 'Red' }
         Write-Host ("  {0} {1,-30} {2}" -f $mark, $key, $shown) -ForegroundColor $colour
+    }
+    if (-not (Test-RegistryVersion $root)) {
+        Write-Host ("  FAIL {0,-30} {1}" -f 'forge.toml registry Version', 'must be "${app.version}"') -ForegroundColor Red
     }
     $state
 }

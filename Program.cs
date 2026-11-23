@@ -17,6 +17,9 @@ internal static class Program
         }
         if (args.Contains("--selftest")) return SelfTest();
         Windowed = args.Contains("--windowed");
+        // Before anything reads session.json or opens WebView2: move a pre-fezcode
+        // %LOCALAPPDATA%\HammerOS into %LOCALAPPDATA%\fezcode\HammerOS. Never throws.
+        AppPaths.MigrateLegacyData();
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;
     }
@@ -25,7 +28,7 @@ internal static class Program
     /// What build.ps1 runs against the published single-file binary. A self-contained
     /// bundle resolves Avalonia's native libraries and avares:// assets differently
     /// from `dotnet run`, so this exercises exactly that without opening a window or
-    /// touching the user's real %LOCALAPPDATA%/HammerOS/session.json.
+    /// touching the user's real %LOCALAPPDATA%/fezcode/HammerOS/session.json.
     /// </summary>
     private static int SelfTest()
     {

@@ -144,7 +144,7 @@ Embedding depends on the application's compatibility with Windows `SetParent`. S
 
 Motion includes eased window transitions, focus colors, hover feedback, page and tab changes, drifting numbers, collection effects, and guided breathing. Turn off **Smooth motion** in Settings to reduce movement. HammerOS uses the same cream context menus in Explorer, text fields, terminal tabs and surfaces, the taskbar, Browser, and Media Player; text menus include undo and redo, cut, copy and paste, delete, and select all. Windows apps embedded in tiled retain their own native interface.
 
-Virtual files, preferences, refinement and Sudoku progress, and local calendar events are written atomically to `%LOCALAPPDATA%/HammerOS/session.json`. WebView2 keeps its profile in `%LOCALAPPDATA%/HammerOS/WebView2`. Real terminal sessions are not persisted, and service switches reset when the app starts. Memoranda and the record editor save when you press their Save button. Stock virtual documents from the previous branding are migrated only when they still match their original contents.
+Virtual files, preferences, refinement and Sudoku progress, and local calendar events are written atomically to `%LOCALAPPDATA%/fezcode/HammerOS/session.json`. WebView2 keeps its profile in `%LOCALAPPDATA%/fezcode/HammerOS/WebView2`. Data left in `%LOCALAPPDATA%/HammerOS` by older versions is moved there on first launch. Real terminal sessions are not persisted, and service switches reset when the app starts. Memoranda and the record editor save when you press their Save button. Stock virtual documents from the previous branding are migrated only when they still match their original contents.
 
 ## The Department
 

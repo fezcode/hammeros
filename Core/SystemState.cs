@@ -54,7 +54,7 @@ public sealed class SystemState
 
     public SystemState(string? path = null, bool persistent = true)
     {
-        _statePath = persistent ? path ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HammerOS", "session.json") : null;
+        _statePath = persistent ? path ?? AppPaths.SessionFile : null;
         Seed();
         var defaults = Files.ToDictionary(x => x.Path);
         if (_statePath is not null && File.Exists(_statePath))
