@@ -9,11 +9,9 @@ publisher = "Samil Bulbul"
 comments  = "A fullscreen retro Windows workspace with real files, shells and embedded apps"
 
 [ui]
-# huh is the only shipped theme that asks the engine for a real Mica backdrop,
-# so the wizard picks up the desktop tint behind it instead of painting its own
-# ground. It lays the steps out as a rail down the left. Forge falls back to an
-# opaque window automatically below Windows 11 22H2.
-theme        = "huh"
+# glass = frosted acrylic over the desktop, matching the other Fezcode installers.
+# Forge falls back to an opaque window automatically below Windows 11 22H2.
+theme        = "glass"
 window_title = "HammerOS Setup"
 
 [install]
@@ -28,8 +26,8 @@ default_dir = "${LOCALAPPDATA}/Programs/HammerOS"
 [uninstall]
 settings_dirs = ["${LOCALAPPDATA}/fezcode/HammerOS"]
 
-# Step titles double as the labels in huh's left rail, so they are short. The
-# rail already heads itself with "HAMMEROS 0.4.0", and each body carries the
+# Step titles double as the labels in the wizard's left rail, so they are short. The
+# rail already heads itself with the app name and version, and each body carries the
 # version where it matters; version.ps1 rewrites those.
 [[steps]]
 type  = "welcome"
